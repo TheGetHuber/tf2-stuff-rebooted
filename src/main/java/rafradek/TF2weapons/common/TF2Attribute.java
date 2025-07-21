@@ -2,14 +2,9 @@ package rafradek.TF2weapons.common;
 
 import com.google.common.base.Predicate;
 import com.google.common.base.Predicates;
-import net.minecraft.client.resources.I18n;
-import net.minecraft.entity.EntityLivingBase;
-import net.minecraft.entity.player.EntityPlayer;
-import net.minecraft.item.ItemStack;
-import net.minecraft.nbt.NBTBase;
-import net.minecraft.nbt.NBTTagCompound;
-import net.minecraft.nbt.NBTTagFloat;
-import net.minecraft.util.text.TextFormatting;
+
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.item.ItemStack;
 import net.minecraftforge.items.IItemHandler;
 import rafradek.TF2weapons.TF2ConfigVars;
 import rafradek.TF2weapons.TF2weapons;
@@ -467,9 +462,9 @@ public class TF2Attribute {
 		return value;
 	}
 
-	public static float getModifier(String effect, ItemStack stack, float initial, EntityLivingBase entity) {
+	public static float getModifier(String effect, ItemStack stack, float initial, LivingEntity entity) {
 
-		if (!stack.hasCapability(TF2weapons.WEAPONS_DATA_CAP, null))
+		if (!stack.has(TF2weapons.WEAPONS_DATA_CAP))
 			return initial;
 		float value = stack.getCapability(TF2weapons.WEAPONS_DATA_CAP, null).getAttributeValue(stack, effect, initial);
 
@@ -486,7 +481,7 @@ public class TF2Attribute {
 		if (itemHandler == null) return initial;
 		for (int i = 0; i < itemHandler.getSlots(); i++) {
 			ItemStack stack = itemHandler.getStackInSlot(i);
-			if (!stack.hasCapability(TF2weapons.WEAPONS_DATA_CAP, null))
+			if (!stack.has(TF2weapons.WEAPONS_DATA_CAP))
 				continue;
 			stack.getCapability(TF2weapons.WEAPONS_DATA_CAP, null).getAttributeValue(stack, effect, value);
 		}

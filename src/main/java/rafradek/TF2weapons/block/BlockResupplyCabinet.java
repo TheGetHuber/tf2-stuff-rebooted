@@ -1,20 +1,23 @@
 package rafradek.TF2weapons.block;
 
+import rafradek.TF2weapons.tileentity.TileEntityResupplyCabinet;
+import rafradek.TF2weapons.tileentity.TileEntityRobotDeploy;
+
 import net.minecraft.core.NonNullList;
 import net.minecraft.world.item.CreativeModeTabs;
-import net.minecraft.entity.EntityLivingBase;
-import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.util.*;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.world.World;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.InteractionResult;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.api.distmarker.OnlyIn;
-import rafradek.TF2weapons.tileentity.TileEntityResupplyCabinet;
-import rafradek.TF2weapons.tileentity.TileEntityRobotDeploy;
+import net.minecraft.world.level.BlockGetter;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.EntityBlock;
 import net.minecraft.world.level.block.RenderShape;
+import net.minecraft.world.level.block.Rotation;
 import net.minecraft.world.level.block.SoundType;
 import net.minecraft.world.level.block.Mirror;
 import net.minecraft.world.level.block.entity.BlockEntity;
@@ -23,9 +26,12 @@ import net.minecraft.world.level.block.state.StateDefinition;
 import net.minecraft.world.level.block.state.properties.BooleanProperty;
 import net.minecraft.world.level.block.state.properties.DirectionProperty;
 import net.minecraft.world.level.material.MapColor;
+import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.client.multiplayer.chat.LoggedChatMessage.Player;
+import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 
-public class BlockResupplyCabinet extends Block {
+public class BlockResupplyCabinet extends Block implements EntityBlock{
 
 	public static final BooleanProperty HOLDER = BooleanProperty.create("holder");
 	public static final DirectionProperty FACING = DirectionProperty.create("facing", Direction.Plane.HORIZONTAL);
@@ -46,20 +52,21 @@ public class BlockResupplyCabinet extends Block {
 		builder.add(FACING, HOLDER);
 	}
 
-	@Override
-	public RenderShape getRenderShape(BlockState state){
-		return RenderShape.MODEL;
-	}
+	// already implemented in BlockBehaviour.class
+	// @Override
+	// public RenderShape getRenderShape(BlockState state){
+	// 	return RenderShape.MODEL;
+	// }
 
 	@Override
-	public BlockEntity createNewTileEntity(World world, int meta) {
+	public BlockEntity createNewBlockEntity(World world, int meta) {
 		return  ((meta & 4) == 4) ? new TileEntityResupplyCabinet() : null;
 	}
 
 	@Override
-	public boolean onBlockActivated(World world, BlockPos pos, IBlockState state, EntityPlayer player, EnumHand hand, EnumFacing side, float hitX, float hitY, float hitZ) {
-		if (!world.isRemote) {}
-		return false;
+	public InteractionResult useWithoutItem(BlockState state, Level level, BlockPos pos, Player ply, InteractionHand hand, BlockHitResult hit) {
+		if (!level.isClientSide) {}
+		return InteractionResult.PASS;
 	}
 
 	@Override
@@ -72,28 +79,28 @@ public class BlockResupplyCabinet extends Block {
 	}
 
 	@Override
-	public void onBlockAdded(World world, BlockPos pos, IBlockState state) {
+	public void onBlockAdded(Level world, BlockPos pos, BlockState state) {
 		this.updateState(world, pos, state);
 	}
 
-	private void updateState(World world, BlockPos pos, IBlockState state) {
-		BlockEntity ent = world.getTileEntity(pos);
+	private void updateState(Level world, BlockPos pos, BlockState state) {
+		BlockEntity ent = world.getBlockEntity(pos);
 		if (ent instanceof TileEntityResupplyCabinet && ((TileEntityResupplyCabinet) ent).redstoneActivate)
 			((TileEntityResupplyCabinet) ent).setEnabled(world.isBlockPowered(pos));
 	}
 
 	@Override
-	public void onBlockDestroyedByPlayer(World world, BlockPos pos, IBlockState state) {
+	public void onBlockDestroyedByPlayer(Level world, BlockPos pos, BlockState state) {
 
 	}
 
 	@Override
-	public void neighborChanged(IBlockState state, World world, BlockPos pos, Block blockIn, BlockPos fromPos) {
+	public void neighborChanged(IBlockState state, Level world, BlockPos pos, Block blockIn, BlockPos fromPos) {
 		this.updateState(world, fromPos, state);
 	}
 
 	@Override
-	public void onBlockPlacedBy(World world, BlockPos pos, IBlockState state, EntityLivingBase placer, ItemStack stack) {
+	public void onBlockPlacedBy(Level world, BlockPos pos, IBlockState state, EntityLivingBase placer, ItemStack stack) {
 		world.setBlockState(pos, state = state.withProperty(FACING, placer.getHorizontalFacing().getOpposite()), 2);
 		if (placer instanceof EntityPlayer) {}
 		if (world.isAirBlock(pos.up()))
@@ -101,7 +108,7 @@ public class BlockResupplyCabinet extends Block {
 	}
 
 	@Override
-	public void breakBlock(World world, BlockPos pos, IBlockState state) {
+	public void breakBlock(Level world, BlockPos pos, IBlockState state) {
 		if (state.getValue(HOLDER)) {
 			if (world.getBlockState(pos.up()).getBlock() == this) world.setBlockToAir(pos.up());
 		} else {
@@ -113,18 +120,18 @@ public class BlockResupplyCabinet extends Block {
 	}
 
 	@Override
-	public boolean canPlaceBlockAt(World world, BlockPos pos) {
+	public boolean canPlaceBlockAt(Level world, BlockPos pos) {
 		return super.canPlaceBlockAt(world, pos)
 				&& world.getBlockState(pos.up()).getBlock().isReplaceable(world, pos.up());
 	}
 
 	@Override
-	public IBlockState withRotation(IBlockState state, Rotation rot) {
+	public IBlockState withRotation(BlockState state, Rotation rot) {
 		return state.withProperty(FACING, rot.rotate(state.getValue(FACING)));
 	}
 
 	@Override
-	public IBlockState withMirror(IBlockState state, Mirror mirrorIn) {
+	public IBlockState withMirror(BlockState state, Mirror mirrorIn) {
 		return state.withRotation(mirrorIn.toRotation(state.getValue(FACING)));
 	}
 
@@ -134,7 +141,7 @@ public class BlockResupplyCabinet extends Block {
 	}
 
 	@Override
-	public int getMetaFromState(IBlockState state) {
+	public int getMetaFromState(BlockState state) {
 		return state.getValue(FACING).getIndex() - 2 + (state.getValue(HOLDER) ? 4 : 0);
 	}
 
@@ -156,22 +163,22 @@ public class BlockResupplyCabinet extends Block {
 	}
 
 	@Override
-	public boolean isOpaqueCube(IBlockState state) {
+	public boolean isOpaqueCube(BlockState state) {
 		return false;
 	}
 
 	@Override
-	public boolean isFullCube(IBlockState state) {
+	public boolean isCollisionShapeFullBlock(BlockGetter getter, BlockPos pos){
 		return false;
 	}
 
 	@Override
-	public boolean hasComparatorInputOverride(IBlockState state) {
+	public boolean hasComparatorInputOverride(BlockState state) {
 		return true;
 	}
 
 	@Override
-	public int getComparatorInputOverride(IBlockState blockState, World world, BlockPos pos) {
+	public int getComparatorInputOverride(BlockState blockState, World world, BlockPos pos) {
 		return  world.getTileEntity(pos) instanceof TileEntityResupplyCabinet
 				&& ((TileEntityResupplyCabinet) world.getTileEntity(pos)).cooldownUse.size() > 0 ? 15 : 0;
 	}

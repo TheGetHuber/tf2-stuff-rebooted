@@ -1,85 +1,32 @@
 package rafradek.TF2weapons;
 
 import com.google.common.io.Files;
-import net.minecraft.block.Block;
-import net.minecraft.block.BlockDispenser;
-import net.minecraft.block.BlockOre;
-import net.minecraft.block.material.MapColor;
-import net.minecraft.block.material.Material;
-import net.minecraft.creativetab.CreativeTabs;
-import net.minecraft.dispenser.BehaviorDefaultDispenseItem;
-import net.minecraft.dispenser.IBlockSource;
-import net.minecraft.dispenser.IPosition;
-import net.minecraft.entity.*;
-import net.minecraft.entity.ai.attributes.AbstractAttributeMap;
-import net.minecraft.entity.monster.EntityCreeper;
-import net.minecraft.entity.monster.EntitySpider;
-import net.minecraft.entity.monster.EntityZombie;
-import net.minecraft.entity.player.EntityPlayer;
-import net.minecraft.entity.player.EntityPlayerMP;
-import net.minecraft.init.Biomes;
-import net.minecraft.init.Blocks;
-import net.minecraft.init.Items;
-import net.minecraft.init.MobEffects;
-import net.minecraft.inventory.EntityEquipmentSlot;
-import net.minecraft.item.EnumDyeColor;
-import net.minecraft.item.Item;
-import net.minecraft.item.ItemArmor.ArmorMaterial;
-import net.minecraft.item.ItemBlock;
-import net.minecraft.item.ItemStack;
-import net.minecraft.item.crafting.IRecipe;
-import net.minecraft.nbt.CompressedStreamTools;
-import net.minecraft.nbt.NBTBase;
-import net.minecraft.nbt.NBTTagCompound;
-import net.minecraft.nbt.NBTTagList;
-import net.minecraft.potion.Potion;
-import net.minecraft.potion.PotionEffect;
+
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.NonNullList;
+import net.minecraft.core.component.DataComponentType;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
-import net.minecraft.stats.StatBase;
-import net.minecraft.stats.StatBasic;
-import net.minecraft.tileentity.BannerPattern;
 import net.minecraft.util.*;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.Vec2f;
-import net.minecraft.util.text.TextComponentTranslation;
-import net.minecraft.village.MerchantRecipe;
-import net.minecraft.world.World;
-import net.minecraft.world.biome.Biome;
-import net.minecraft.world.biome.Biome.SpawnListEntry;
-import net.minecraft.world.chunk.storage.AnvilSaveConverter;
-import net.minecraft.world.gen.structure.MapGenStructureIO;
-import net.minecraft.world.storage.loot.LootTableList;
-import net.minecraft.world.storage.loot.conditions.LootConditionManager;
-import net.minecraft.world.storage.loot.functions.LootFunctionManager;
+import net.minecraft.world.damagesource.DamageSource;
+import net.minecraft.world.effect.MobEffects;
+import net.minecraft.world.item.ArmorMaterial;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.alchemy.Potion;
+import net.minecraft.world.level.biome.Biome;
+import net.minecraft.world.level.block.entity.BannerPattern;
+import net.minecraft.world.level.material.MapColor;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.common.capabilities.Capability;
-import net.minecraftforge.common.capabilities.Capability.IStorage;
-import net.minecraftforge.common.capabilities.CapabilityInject;
 import net.minecraftforge.common.capabilities.CapabilityManager;
-import net.minecraftforge.common.config.Configuration;
-import net.minecraftforge.common.util.EnumHelper;
-import net.minecraftforge.fluids.Fluid;
-import net.minecraftforge.fluids.FluidRegistry;
-import net.minecraftforge.fml.common.Loader;
+import net.minecraftforge.fml.InterModComms.IMCMessage;
 import net.minecraftforge.fml.common.Mod;
-import net.minecraftforge.fml.common.Mod.Instance;
-import net.minecraftforge.fml.common.Mod.Metadata;
-import net.minecraftforge.fml.common.ModMetadata;
-import net.minecraftforge.fml.common.SidedProxy;
-import net.minecraftforge.fml.common.event.*;
-import net.minecraftforge.fml.common.event.FMLInterModComms.IMCEvent;
-import net.minecraftforge.fml.common.event.FMLInterModComms.IMCMessage;
-import net.minecraftforge.fml.common.network.IGuiHandler;
-import net.minecraftforge.fml.common.network.NetworkRegistry;
-import net.minecraftforge.fml.common.registry.EntityRegistry;
-import net.minecraftforge.fml.common.registry.ForgeRegistries;
-import net.minecraftforge.fml.common.registry.GameRegistry;
-import net.minecraftforge.fml.relauncher.Side;
-import net.minecraftforge.fml.relauncher.SideOnly;
-import net.minecraftforge.oredict.OreDictionary;
-import net.minecraftforge.oredict.ShapedOreRecipe;
-import net.minecraftforge.oredict.ShapelessOreRecipe;
+import net.minecraftforge.network.NetworkRegistry;
+import net.minecraftforge.registries.DeferredRegister;
+import net.minecraftforge.registries.ForgeRegistries;
 import net.minecraftforge.registries.IForgeRegistryModifiable;
+import net.minecraftforge.registries.RegistryObject;
+
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import rafradek.TF2weapons.arena.GameArena;
@@ -135,23 +82,32 @@ public class TF2weapons {
 	@Metadata(MOD_ID)
 	public static ModMetadata metadata;
 
-	@CapabilityInject(WeaponsCapability.class)
-	public static final Capability<WeaponsCapability> WEAPONS_CAP = null;
+	// @CapabilityInject(class) was deleted
+	// Now it is DeferredRegister<Capability<?>>
+
+	public static final DeferredRegister<Capability<?>> CAPABILITIES =
+		DeferredRegister.create(ForgeRegistries.Keys.CAPABILITIES_TYPE, MOD_ID);
+	
+	public static final RegistryObject<DataComponentType<WeaponsCapability>> WEAPONS_CAP = 
+		CAPABILITIES.register("weapons_cap", () -> DataComponentType.<WeaponsCapability>builder().build());
+
+	// @CapabilityInject(WeaponsCapability.class)
+	// public static final DataComponentType<WeaponsCapability> WEAPONS_CAP = null;
 
 	@CapabilityInject(InventoryWearables.class)
-	public static final Capability<InventoryWearables> INVENTORY_CAP = null;
+	public static final DataComponentType<InventoryWearables> INVENTORY_CAP = null;
 
 	@CapabilityInject(InventoryAmmoBelt.class)
-	public static final Capability<InventoryAmmoBelt> INVENTORY_BELT_CAP = null;
+	public static final DataComponentType<InventoryAmmoBelt> INVENTORY_BELT_CAP = null;
 
 	@CapabilityInject(TF2EventsCommon.TF2WorldStorage.class)
-	public static final Capability<TF2EventsCommon.TF2WorldStorage> WORLD_CAP = null;
+	public static final DataComponentType<TF2EventsCommon.TF2WorldStorage> WORLD_CAP = null;
 
 	@CapabilityInject(WeaponData.WeaponDataCapability.class)
-	public static final Capability<WeaponData.WeaponDataCapability> WEAPONS_DATA_CAP = null;
+	public static final DataComponentType<WeaponData.WeaponDataCapability> WEAPONS_DATA_CAP = null;
 
 	@CapabilityInject(TF2PlayerCapability.class)
-	public static final Capability<TF2PlayerCapability> PLAYER_CAP = null;
+	public static final DataComponentType<TF2PlayerCapability> PLAYER_CAP = null;
 
 	public static TF2UdpServer udpServer;
 

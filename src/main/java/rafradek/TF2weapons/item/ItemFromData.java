@@ -8,34 +8,9 @@ import com.google.gson.JsonDeserializationContext;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonParseException;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.ScaledResolution;
-import net.minecraft.client.renderer.BufferBuilder;
-import net.minecraft.client.renderer.ItemMeshDefinition;
-import net.minecraft.client.renderer.Tessellator;
-import net.minecraft.client.renderer.block.model.ModelResourceLocation;
-import net.minecraft.client.util.ITooltipFlag;
-import net.minecraft.creativetab.CreativeTabs;
-import net.minecraft.entity.Entity;
-import net.minecraft.entity.EntityLivingBase;
-import net.minecraft.entity.player.EntityPlayer;
-import net.minecraft.item.Item;
-import net.minecraft.item.ItemArrow;
-import net.minecraft.item.ItemStack;
-import net.minecraft.nbt.NBTBase;
-import net.minecraft.nbt.NBTTagCompound;
-import net.minecraft.nbt.NBTTagFloat;
-import net.minecraft.util.NonNullList;
-import net.minecraft.util.ResourceLocation;
-import net.minecraft.util.SoundEvent;
-import net.minecraft.util.math.MathHelper;
-import net.minecraft.util.text.TextFormatting;
-import net.minecraft.util.text.translation.I18n;
-import net.minecraft.world.World;
-import net.minecraftforge.client.model.ModelLoader;
-import net.minecraftforge.fml.common.registry.ForgeRegistries;
-import net.minecraftforge.fml.relauncher.Side;
-import net.minecraftforge.fml.relauncher.SideOnly;
-import net.minecraftforge.items.CapabilityItemHandler;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
 import net.minecraftforge.items.IItemHandler;
 import rafradek.TF2weapons.NBTLiterals;
 import rafradek.TF2weapons.TF2ConfigVars;
@@ -147,7 +122,7 @@ public class ItemFromData extends Item implements IItemOverlay {
 
 	@Override
 	public void onUpdate(ItemStack stack, World par2World, Entity par3Entity, int par4, boolean par5) {
-		if (getData(stack) == BLANK_DATA && par3Entity instanceof EntityPlayer) {
+		if (getData(stack) == BLANK_DATA && par3Entity instanceof Player) {
 			((EntityPlayer) par3Entity).inventory.setInventorySlotContents(par4, ItemStack.EMPTY);
 			stack.setCount(0);
 			return;
@@ -633,9 +608,9 @@ public class ItemFromData extends Item implements IItemOverlay {
 				: getData(stack).getInt(PropertyType.AMMO_TYPE);
 	}
 
-	public static int getAmmoAmountType(EntityPlayer owner, int type) {
+	public static int getAmmoAmountType(Player owner, int type) {
 		int ammoCount = 0;
-		if (!owner.getCapability(TF2weapons.INVENTORY_CAP, null).getStackInSlot(3).isEmpty()) {
+		if (!owner.getCapability(TF2weapons.INVENTORY_CAP, null).getStackInSlot(3).isEmpty()) { // TODO: adapt this shit
 			IItemHandler inv = owner.getCapability(TF2weapons.INVENTORY_CAP, null).getStackInSlot(3)
 					.getCapability(CapabilityItemHandler.ITEM_HANDLER_CAPABILITY, null);
 			for (int i = 0; i < inv.getSlots(); i++) {

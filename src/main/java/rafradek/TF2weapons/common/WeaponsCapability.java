@@ -2,32 +2,17 @@ package rafradek.TF2weapons.common;
 
 import com.mojang.authlib.GameProfile;
 import com.mojang.authlib.minecraft.MinecraftProfileTexture.Type;
-import net.minecraft.block.state.IBlockState;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.resources.DefaultPlayerSkin;
-import net.minecraft.entity.Entity;
-import net.minecraft.entity.EntityLivingBase;
-import net.minecraft.entity.SharedMonsterAttributes;
-import net.minecraft.entity.player.EntityPlayer;
-import net.minecraft.entity.player.EntityPlayerMP;
-import net.minecraft.init.Items;
-import net.minecraft.inventory.EntityEquipmentSlot;
-import net.minecraft.item.ItemStack;
-import net.minecraft.nbt.NBTTagCompound;
-import net.minecraft.network.datasync.DataParameter;
-import net.minecraft.network.datasync.DataSerializers;
-import net.minecraft.network.datasync.EntityDataManager;
-import net.minecraft.potion.PotionEffect;
-import net.minecraft.tileentity.TileEntitySkull;
-import net.minecraft.util.EnumFacing;
-import net.minecraft.util.EnumHand;
-import net.minecraft.util.EnumParticleTypes;
-import net.minecraft.util.ResourceLocation;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.MathHelper;
-import net.minecraft.util.math.RayTraceResult;
-import net.minecraft.util.math.Vec3d;
-import net.minecraft.world.WorldServer;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.network.syncher.EntityDataSerializer;
+import net.minecraft.network.syncher.EntityDataSerializers;
+import net.minecraft.network.syncher.SynchedEntityData;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.network.syncher.EntityDataAccessor;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.item.ItemStack;
 import net.minecraftforge.common.capabilities.Capability;
 import net.minecraftforge.common.capabilities.ICapabilityProvider;
 import net.minecraftforge.common.util.INBTSerializable;
@@ -59,16 +44,16 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
-public class WeaponsCapability implements ICapabilityProvider, INBTSerializable<NBTTagCompound> {
+public class WeaponsCapability implements ICapabilityProvider, INBTSerializable<CompoundTag> {
 
 	public static final int MAX_METAL = 200;
 	public static final int MAX_METAL_ENGINEER = 500;
 	public static final int PLAYER_MINCOOL = -200;
 
-	public EntityLivingBase owner;
+	public LivingEntity owner;
 	public int state;
 	public int minigunTicks;
-	public EnumHand reloadingHand;
+	public InteractionHand reloadingHand;
 	public int reloadCool;
 	public int lastFire;
 	// public int critTime;
@@ -115,9 +100,9 @@ public class WeaponsCapability implements ICapabilityProvider, INBTSerializable<
 	public boolean teleporterEntity;
 	public boolean forcedClass;
 	public float lastHitCharge;
-	public EntityDataManager dataManager;
+	public EntityDataAccessor dataManager;
 
-	public EntityLivingBase entityDisguise;
+	public LivingEntity entityDisguise;
 
 	public ArrayList<EntityStickybomb> activeBomb = new ArrayList<>();
 	public float oldFactor;
@@ -129,7 +114,7 @@ public class WeaponsCapability implements ICapabilityProvider, INBTSerializable<
 	public long ticksTotal;
 	public boolean fireCoolReduced;
 	public boolean autoFire;
-	public EntityLivingBase lastAttacked;
+	public LivingEntity lastAttacked;
 	public boolean stabbedDisguise;
 	private boolean canExpJump = true;
 
@@ -137,30 +122,60 @@ public class WeaponsCapability implements ICapabilityProvider, INBTSerializable<
 	public float maxmetal = 1;
 	public float damageArmorMin;
 
-	public EnumMap<EnumHand, ItemStack> stackActive = new EnumMap<>(EnumHand.class);
+	public EnumMap<InteractionHand, ItemStack> stackActive = new EnumMap<>(InteractionHand.class);
 
 	private float[] rageDrain = new float[RageType.values().length];
 	public int disguiseCounter;
 
 	private EntityGrapplingHook grapplingHook;
 
-	private static final DataParameter<Boolean> EXP_JUMP = new DataParameter<>(6, DataSerializers.BOOLEAN);
-	private static final DataParameter<Boolean> CHARGING = new DataParameter<>(11, DataSerializers.BOOLEAN);
-	private static final DataParameter<String> DISGUISE_TYPE = new DataParameter<>(7, DataSerializers.STRING);
-	private static final DataParameter<Boolean> DISGUISED = new DataParameter<>(8, DataSerializers.BOOLEAN);
-	private static final DataParameter<Boolean> INVIS = new DataParameter<>(9, DataSerializers.BOOLEAN);
-	private static final DataParameter<Boolean> FEIGN = new DataParameter<>(10, DataSerializers.BOOLEAN);
-	private static final DataParameter<Integer> CRIT_TIME = new DataParameter<>(0, DataSerializers.VARINT);
-	private static final DataParameter<Integer> HEADS = new DataParameter<>(1, DataSerializers.VARINT);
-	private static final DataParameter<Integer> HEAL_TARGET = new DataParameter<>(2, DataSerializers.VARINT);
-	private static final DataParameter<Integer> METAL = new DataParameter<>(3, DataSerializers.VARINT);
-	private static final DataParameter<Integer> TOKEN_USED = new DataParameter<>(12, DataSerializers.VARINT);
-	private static final DataParameter<Byte> CAN_FIRE = new DataParameter<>(13, DataSerializers.BYTE);
-	private static final DataParameter<Float> UBER_VIEW = new DataParameter<>(14, DataSerializers.FLOAT);
-	private static final DataParameter<Boolean> GRAPPLING = new DataParameter<>(15, DataSerializers.BOOLEAN);
-	private static final DataParameter<Boolean> GRAPPLED = new DataParameter<>(16, DataSerializers.BOOLEAN);
-	private static final EnumMap<RageType, DataParameter<Float>> RAGE = new EnumMap<>(RageType.class);
-	private static final EnumMap<RageType, DataParameter<Boolean>> RAGE_ACTIVE = new EnumMap<>(RageType.class);
+	//private static final EntityDataAccessor<Boolean> EXP_JUMP = new EntityDataAccessor<>(6, EntityDataSerializers.BOOLEAN);
+	private static final EntityDataAccessor<Boolean> EXP_JUMP = SynchedEntityData.defineId(null, EntityDataSerializers.BOOLEAN);
+
+	//private static final DataParameter<Boolean> CHARGING = new DataParameter<>(11, DataSerializers.BOOLEAN);
+	private static final EntityDataAccessor<Boolean> CHARGING = SynchedEntityData.defineId(null, EntityDataSerializers.BOOLEAN);
+
+	//private static final DataParameter<String> DISGUISE_TYPE = new DataParameter<>(7, DataSerializers.STRING);
+	private static final EntityDataAccessor<String> DISGUISE_TYPE = SynchedEntityData.defineId(null, EntityDataSerializers.STRING);
+
+	//private static final DataParameter<Boolean> DISGUISED = new DataParameter<>(8, DataSerializers.BOOLEAN);
+	private static final EntityDataAccessor<Boolean> DISGUISED = SynchedEntityData.defineId(null, EntityDataSerializers.BOOLEAN);
+
+	//private static final DataParameter<Boolean> INVIS = new DataParameter<>(9, DataSerializers.BOOLEAN);
+	private static final EntityDataAccessor<Boolean> INVIS = SynchedEntityData.defineId(null, EntityDataSerializers.BOOLEAN);
+
+	//private static final DataParameter<Boolean> FEIGN = new DataParameter<>(10, DataSerializers.BOOLEAN);
+	private static final EntityDataAccessor<Boolean> FEIGN = SynchedEntityData.defineId(null, EntityDataSerializers.BOOLEAN);
+	
+	//private static final DataParameter<Integer> CRIT_TIME = new DataParameter<>(0, DataSerializers.VARINT);
+	private static final EntityDataAccessor<Integer> CRIT_TIME = SynchedEntityData.defineId(null, EntityDataSerializers.INT);
+	
+	//private static final DataParameter<Integer> HEADS = new DataParameter<>(1, DataSerializers.VARINT);
+	private static final EntityDataAccessor<Integer> HEADS = SynchedEntityData.defineId(null, EntityDataSerializers.INT);
+	
+	//private static final DataParameter<Integer> HEAL_TARGET = new DataParameter<>(2, DataSerializers.VARINT);
+	private static final EntityDataAccessor<Integer> HEAL_TARGET = SynchedEntityData.defineId(null, EntityDataSerializers.INT);
+	
+	//private static final DataParameter<Integer> METAL = new DataParameter<>(3, DataSerializers.VARINT);
+	private static final EntityDataAccessor<Integer> METAL = SynchedEntityData.defineId(null, EntityDataSerializers.INT);
+	
+	//private static final DataParameter<Integer> TOKEN_USED = new DataParameter<>(12, DataSerializers.VARINT);
+	private static final EntityDataAccessor<Integer> TOKEN_USED = SynchedEntityData.defineId(null, EntityDataSerializers.INT);
+	
+	//private static final DataParameter<Byte> CAN_FIRE = new DataParameter<>(13, DataSerializers.BYTE);
+	private static final EntityDataAccessor<Byte> CAN_FIRE = SynchedEntityData.defineId(null, EntityDataSerializers.BYTE);
+	
+	//private static final DataParameter<Float> UBER_VIEW = new DataParameter<>(14, DataSerializers.FLOAT);
+	private static final EntityDataAccessor<Float> UBER_VIEW = SynchedEntityData.defineId(null, EntityDataSerializers.FLOAT);
+	
+	//private static final DataParameter<Boolean> GRAPPLING = new DataParameter<>(15, DataSerializers.BOOLEAN);
+	private static final EntityDataAccessor<Boolean> GRAPPLING = SynchedEntityData.defineId(null, EntityDataSerializers.BOOLEAN);
+	
+	//private static final DataParameter<Boolean> GRAPPLED = new DataParameter<>(16, DataSerializers.BOOLEAN)
+	private static final EntityDataAccessor<Boolean> GRAPPLED = SynchedEntityData.defineId(null, EntityDataSerializers.BOOLEAN);
+
+	private static final EnumMap<RageType, EntityDataAccessor<Float>> RAGE = new EnumMap<>(RageType.class);
+	private static final EnumMap<RageType, EntityDataAccessor<Boolean>> RAGE_ACTIVE = new EnumMap<>(RageType.class);
 	public static final ExecutorService THREAD_POOL = new ThreadPoolExecutor(0, 2, 1L, TimeUnit.MINUTES,
 			new LinkedBlockingQueue<Runnable>());
 
@@ -175,7 +190,7 @@ public class WeaponsCapability implements ICapabilityProvider, INBTSerializable<
 	 * buildingOwnerKill;
 	 */
 
-	public WeaponsCapability(EntityLivingBase entity) {
+	public WeaponsCapability(LivingEntity entity) {
 		this.owner = entity;
 
 		for (int i = 0; i < this.predictionList.length; i++)

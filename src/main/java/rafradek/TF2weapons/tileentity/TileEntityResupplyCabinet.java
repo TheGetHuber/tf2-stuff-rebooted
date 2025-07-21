@@ -1,19 +1,17 @@
 package rafradek.TF2weapons.tileentity;
 
-import net.minecraft.block.state.IBlockState;
-import net.minecraft.entity.EntityLivingBase;
-import net.minecraft.entity.player.EntityPlayer;
-import net.minecraft.item.ItemStack;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.alchemy.Potion;
 import net.minecraft.nbt.CompoundTag;
-import net.minecraft.potion.Potion;
-import net.minecraft.potion.PotionEffect;
 import net.minecraft.world.scores.Team;
-import net.minecraft.util.ITickable;
-import net.minecraft.util.math.AxisAlignedBB;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.world.World;
+import net.minecraft.core.BlockPos;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.entity.BlockEntityTicker;
+import net.minecraft.world.level.block.entity.TickingBlockEntity;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.player.Player;
 import rafradek.TF2weapons.TF2weapons;
 import rafradek.TF2weapons.entity.mercenary.EntityTF2Character;
 import rafradek.TF2weapons.item.ItemAmmoPackage;
@@ -28,11 +26,11 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Map.Entry;
 
-public class TileEntityResupplyCabinet extends BlockEntity implements BlockEntityTicker, IEntityConfigurable {
+public class TileEntityResupplyCabinet extends BlockEntity implements TickingBlockEntity, IEntityConfigurable {
 
 	private static final String[] OUTPUT_NAMES = { "OnResupply", "OnResupplyLeave" };
 	public Team team;
-	public Map<EntityLivingBase, Integer> cooldownUse = new HashMap<>();
+	public Map<LivingEntity, Integer> cooldownUse = new HashMap<>();
 	public boolean usedBy;
 	public boolean enabled = true;
 	public boolean redstoneActivate;
@@ -40,17 +38,17 @@ public class TileEntityResupplyCabinet extends BlockEntity implements BlockEntit
 
 	public void setEnabled(boolean enable) {
 
-		this.world.addBlockEvent(this.pos, this.getBlockType(), 0, enabled ? 1 : 0);
+		this.level.setBlock(this.worldPosition, this.getBlockState(), 0, enabled ? 1 : 0);
 		if (this.enabled != enable) {
 			this.enabled = enable;
-			this.world.notifyNeighborsOfStateChange(this.pos, this.getBlockType(), false);
+			this.level.updateNeighborsAt(this.worldPosition, this.getBlockState().getBlock());
 		}
 
 	}
 
 	@Override
-	public void update() {
-		if (!this.world.isRemote) {
+	public void tick() {
+		if (!this.level.isClientSide) {
 			int playersold = cooldownUse.size();
 			cooldownUse.entrySet().removeIf(entry -> {
 				entry.setValue(entry.getValue() - 1);
@@ -58,8 +56,8 @@ public class TileEntityResupplyCabinet extends BlockEntity implements BlockEntit
 			});
 
 			if (this.enabled)
-				for (EntityLivingBase living : this.world.getEntitiesWithinAABB(EntityLivingBase.class,
-						new AxisAlignedBB(this.pos).grow(2),
+				for (EntityLivingBase living : this.level.getEntitiesWithinAABB(EntityLivingBase.class,
+						new AxisAlignedBB(this.worldPosition).grow(2),
 						entityf -> (entityf.isEntityAlive() && (team == null || entityf.getTeam() == team)
 								&& !cooldownUse.containsKey(entityf)
 								&& entityf.hasCapability(TF2weapons.WEAPONS_CAP, null)))) {
@@ -75,11 +73,11 @@ public class TileEntityResupplyCabinet extends BlockEntity implements BlockEntit
 
 					if (living instanceof EntityTF2Character) {
 						((EntityTF2Character) living).restoreAmmo(1);
-					} else if (living instanceof EntityPlayer) {
-						EntityPlayer player = ((EntityPlayer) living);
-						player.getFoodStats().addStats(20, 20);
-						for (int i = 0; i < player.inventory.getSizeInventory(); i++) {
-							ItemStack stack = player.inventory.getStackInSlot(i);
+					} else if (living instanceof Player) {
+						Player player = ((Player) living);
+						player.getFoodData().eat(20, 20f);
+						for (int i = 0; i < player.getInventory().INVENTORY_SIZE; i++) {
+							ItemStack stack = player.getInventory().getItem(i);
 							if (stack.getItem() instanceof ItemFromData) {
 								int ammotype = ((ItemFromData) stack.getItem()).getAmmoType(stack);
 								int ammocount = ItemFromData.getAmmoAmountType(player, ammotype);
@@ -97,27 +95,27 @@ public class TileEntityResupplyCabinet extends BlockEntity implements BlockEntit
 					}
 					this.activateOutput("OnResupply");
 					cooldownUse.put(living, 50);
-					this.world.notifyNeighborsOfStateChange(this.pos, this.getBlockType(), false);
+					this.level.updateNeighborsAt(this.worldPosition, this.getBlockState().getBlock());
 				}
 			if (playersold > 0 && cooldownUse.size() == 0) {
 				this.activateOutput("OnResupplyLeave");
-				this.world.notifyNeighborsOfStateChange(this.pos, this.getBlockType(), false);
+				this.level.updateNeighborsAt(this.worldPosition, this.getBlockState().getBlock());
 			}
 		}
 	}
 
 	@Override
-	public NBTTagCompound writeToNBT(NBTTagCompound compound) {
-		super.writeToNBT(compound);
-		compound.setTag("Config", this.getOutputManager().writeConfig(new NBTTagCompound()));
-		compound.setBoolean("Enabled", this.enabled);
+	public CompoundTag saveAdditional(CompoundTag compound) {
+		super.saveAdditional(compound);
+		compound.put("Config", this.getOutputManager().writeConfig(new CompoundTag()));
+		compound.putBoolean("Enabled", this.enabled);
 		return compound;
 	}
 
 	@Override
-	public void readFromNBT(NBTTagCompound compound) {
-		super.readFromNBT(compound);
-		this.getOutputManager().readConfig(compound.getCompoundTag("Config"));
+	public void load(CompoundTag compound) {
+		super.load(compound);
+		this.getOutputManager().readConfig(compound.getCompound("Config"));
 		this.enabled = compound.getBoolean("Enabled");
 	}
 
@@ -137,7 +135,7 @@ public class TileEntityResupplyCabinet extends BlockEntity implements BlockEntit
 	 * (byte) ((float)this.progress/(float)this.maxprogress*7f)); if (this.progress
 	 * > 0) tag.setByte("C", (byte)
 	 * ItemToken.getClassID(TF2Util.getWeaponUsedByClass(this.weapon.extractItem(
-	 * hasWeapon,64,true)))); } return new SPacketUpdateTileEntity(this.pos, 9999,
+	 * hasWeapon,64,true)))); } return new SPacketUpdateTileEntity(this.worldPosition, 9999,
 	 * tag); }
 	 * 
 	 * public void onDataPacket(net.minecraft.network.NetworkManager net,
@@ -175,23 +173,23 @@ public class TileEntityResupplyCabinet extends BlockEntity implements BlockEntit
 	public void onLoad() {}
 
 	@Override
-	public boolean shouldRefresh(World world, BlockPos pos, IBlockState oldState, IBlockState newSate) {
+	public boolean shouldRefresh(Level world, BlockPos pos, BlockState oldState, BlockState newSate) {
 		return super.shouldRefresh(world, pos, oldState, newSate);
 	}
 
 	@Override
-	protected void setWorldCreate(World world) {
+	protected void setWorldCreate(Level world) {
 		this.setWorld(world);
 	}
 
 	@Override
-	public void setWorld(World world) {
+	public void setWorld(Level world) {
 		super.setWorld(world);
 		this.getOutputManager().world = world;
 	}
 
 	@Override
-	public NBTTagCompound writeConfig(NBTTagCompound tag) {
+	public CompoundTag writeConfig(CompoundTag tag) {
 		tag.setTag("Outputs", this.getOutputManager().saveOutputs(new NBTTagCompound()));
 		if (team != null)
 			tag.setString("T:Team", this.team.getName());
@@ -206,7 +204,7 @@ public class TileEntityResupplyCabinet extends BlockEntity implements BlockEntit
 		this.getOutputManager().loadOutputs(tag.get("Outputs"));
 		this.redstoneActivate = tag.getBoolean("Redstone Activates");
 		if (this.hasWorld() && tag.hasKey("T:Team"))
-			this.team = this.world.getScoreboard().getTeam(tag.getString("T:Team"));
+			this.team = this.level.getScoreboard().getTeam(tag.getString("T:Team"));
 	}
 
 	@Override
