@@ -2,19 +2,22 @@ package rafradek.TF2weapons.tileentity;
 
 import com.google.common.collect.HashMultimap;
 import com.google.common.collect.Multimap;
-import net.minecraft.block.*;
-import net.minecraft.block.state.IBlockState;
+
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.IntArrayTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.Tag;
-import net.minecraft.tileentity.TileEntityComparator;
-import net.minecraft.util.EnumFacing;
 import net.minecraft.util.Tuple;
-import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.ButtonBlock;
+import net.minecraft.world.level.block.ComparatorBlock;
+import net.minecraft.world.level.block.LeverBlock;
+import net.minecraft.world.level.block.RedStoneWireBlock;
+import net.minecraft.world.level.block.entity.ComparatorBlockEntity;
+import net.minecraft.world.level.block.state.BlockState;
 import rafradek.TF2weapons.TF2weapons;
-import net.minecraft.core.BlockPos;
 
 public class EntityOutputManager {
 	public Level world;
@@ -71,30 +74,31 @@ public class EntityOutputManager {
 		for (Tuple<BlockPos, Integer> tup : outputs.get(output)) {
 			BlockPos pos = tup.getA();
 			BlockState state = world.getBlockState(pos);
-			if (state.getBlock() instanceof BlockButton) {
-				world.setBlockState(pos, state.withProperty(BlockButton.POWERED, Boolean.valueOf(true)), 3);
-				world.notifyNeighborsOfStateChange(pos, state.getBlock(), false);
-				world.notifyNeighborsOfStateChange(pos.offset(state.getValue(BlockDirectional.FACING).getOpposite()),
-						state.getBlock(), false);
-				world.scheduleUpdate(pos, state.getBlock(),
-						(int) (state.getBlock().tickRate(world) * power * 15f / tup.getSecond()));
-			} else if (state.getBlock() instanceof BlockLever) {
-				state = state.withProperty(BlockLever.POWERED, tup.getSecond() != 0);
-				EnumFacing enumfacing = state.getValue(BlockLever.FACING).getFacing();
-				world.setBlockState(pos, state, 3);
-				world.notifyNeighborsOfStateChange(pos.offset(enumfacing.getOpposite()), state.getBlock(), false);
-				world.notifyNeighborsOfStateChange(pos, state.getBlock(), false);
-			} else if (state.getBlock() instanceof BlockRedstoneComparator) {
-				world.setBlockState(pos, state.withProperty(BlockButton.POWERED, Boolean.valueOf(true)), 3);
-				if (world.getTileEntity(pos) != null)
-					((TileEntityComparator) world.getTileEntity(pos)).setOutputSignal((int) (tup.getSecond() * power));
+			if (state.getBlock() instanceof ButtonBlock) {
+				world.setBlock(pos, state.setValue(ButtonBlock.POWERED, Boolean.valueOf(true)), 3);
+				world.updateNeighborsAt(pos, state.getBlock());
+				world.updateNeighborsAt(pos.relative(state.getValue(ButtonBlock.FACING).getOpposite()),state.getBlock());
+				world.scheduleTick(
+					pos, state.getBlock(), (int) (20 * power * 15f / tup.getB()) // TODO: implement state.getBlock().tickRate(world) normally, not just 20
+					);
 
-				world.scheduleUpdate(pos, state.getBlock(), minTime);
-				world.notifyNeighborsOfStateChange(pos, state.getBlock(), false);
-			} else if (state.getBlock() instanceof BlockRedstoneWire) {
-				state = state.withProperty(BlockRedstoneWire.POWER, 15);
-				world.setBlockState(pos, state, 3);
-				world.notifyNeighborsOfStateChange(pos, state.getBlock(), false);
+			} else if (state.getBlock() instanceof LeverBlock) {
+				state = state.setValue(LeverBlock.POWERED, tup.getB() != 0);
+				Direction enumfacing = state.getValue(LeverBlock.FACING);
+				world.setBlock(pos, state, 3);
+				world.updateNeighborsAt(pos.relative(enumfacing), state.getBlock());
+				world.updateNeighborsAt(pos, state.getBlock());
+			} else if (state.getBlock() instanceof ComparatorBlock) {
+				world.setBlock(pos, state.setValue(ButtonBlock.POWERED, Boolean.valueOf(true)), 3);
+				if (world.getBlockEntity(pos) != null)
+					((ComparatorBlockEntity) world.getBlockEntity(pos)).setOutputSignal((int) (tup.getB() * power));
+
+				world.scheduleTick(pos, state.getBlock(), minTime);
+				world.updateNeighborsAt(pos, state.getBlock());
+			} else if (state.getBlock() instanceof RedStoneWireBlock) {
+				state = state.setValue(RedStoneWireBlock.POWER, 15);
+				world.setBlock(pos, state, 3);
+				world.updateNeighborsAt(pos, state.getBlock());
 			}
 		}
 	}
