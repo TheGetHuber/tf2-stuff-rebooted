@@ -1,54 +1,53 @@
 package rafradek.TF2weapons.block;
 
-import net.minecraft.block.Block;
-import net.minecraft.block.material.MapColor;
-import net.minecraft.block.material.Material;
-import net.minecraft.block.properties.IProperty;
-import net.minecraft.block.properties.PropertyEnum;
-import net.minecraft.block.state.BlockStateContainer;
-import net.minecraft.block.state.IBlockState;
-import net.minecraft.creativetab.CreativeTabs;
-import net.minecraft.item.Item;
-import net.minecraft.item.ItemStack;
-import net.minecraft.util.IStringSerializable;
-import net.minecraft.util.NonNullList;
-import net.minecraftforge.fml.relauncher.Side;
-import net.minecraftforge.fml.relauncher.SideOnly;
+import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.state.properties.EnumProperty;
+import net.minecraft.world.level.block.state.StateDefinition;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.item.CreativeModeTabs;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.util.StringRepresentable;
+import net.minecraft.core.NonNullList;
+import net.minecraftforge.api.distmarker.OnlyIn;
+import net.minecraftforge.api.distmarker.Dist;
 
 public class BlockProp extends Block {
 
-	public static final PropertyEnum<EnumBlockType> TYPE = PropertyEnum.<EnumBlockType>create("type",
+	public static final EnumProperty<EnumBlockType> TYPE = EnumProperty.<EnumBlockType>create("type",
 			EnumBlockType.class);
 
-	public BlockProp(Material materialIn) {
-		super(materialIn);
+	// Material --> BlockState
+	public BlockProp(Properties blockStateIn) {
+		super(blockStateIn);
 	}
 
-	public BlockProp(Material blockMaterialIn, MapColor blockMapColorIn) {
-		super(blockMaterialIn, blockMapColorIn);
-	}
-
-	@SideOnly(Side.CLIENT)
-	public void getSubBlocks(Item itemIn, CreativeTabs tab, NonNullList<ItemStack> list) {
+	@OnlyIn(Dist.CLIENT)
+	public void getSubBlocks(Item itemIn, CreativeModeTabs tab, NonNullList<ItemStack> list) {
 
 	}
+
+	// @Override
+	// public BlockState getStateFromMeta(int meta) {
+	// 	return this.getDefaultState().withProperty(TYPE, EnumBlockType.values()[meta]);
+	// }
+
+	// @Override
+	// public int getMetaFromState(IBlockState state) {
+	// 	return (state.getValue(TYPE)).ordinal();
+	// }
+
+	//@Override
+	//protected BlockStateContainer createBlockState() {
+	//	return new BlockStateContainer(this, new Property[] { TYPE });
+	//}
 
 	@Override
-	public IBlockState getStateFromMeta(int meta) {
-		return this.getDefaultState().withProperty(TYPE, EnumBlockType.values()[meta]);
+	protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> builder) {
+		builder.add(TYPE);
 	}
 
-	@Override
-	public int getMetaFromState(IBlockState state) {
-		return (state.getValue(TYPE)).ordinal();
-	}
-
-	@Override
-	protected BlockStateContainer createBlockState() {
-		return new BlockStateContainer(this, new IProperty[] { TYPE });
-	}
-
-	public enum EnumBlockType implements IStringSerializable {
+	public enum EnumBlockType implements StringRepresentable {
 		DIAMOND("diamond"), IRON("iron"), GOLD("gold"), OBSIDIAN("obsidian");
 
 		private final String name;
@@ -58,7 +57,7 @@ public class BlockProp extends Block {
 		}
 
 		@Override
-		public String getName() {
+		public String getSerializedName() {
 			return name;
 		}
 
