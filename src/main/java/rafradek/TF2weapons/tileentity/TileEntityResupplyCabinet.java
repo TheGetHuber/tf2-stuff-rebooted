@@ -4,15 +4,16 @@ import net.minecraft.block.state.IBlockState;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.ItemStack;
-import net.minecraft.nbt.NBTTagCompound;
+import net.minecraft.nbt.CompoundTag;
 import net.minecraft.potion.Potion;
 import net.minecraft.potion.PotionEffect;
-import net.minecraft.scoreboard.Team;
-import net.minecraft.tileentity.TileEntity;
+import net.minecraft.world.scores.Team;
 import net.minecraft.util.ITickable;
 import net.minecraft.util.math.AxisAlignedBB;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
+import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.level.block.entity.BlockEntityTicker;
 import rafradek.TF2weapons.TF2weapons;
 import rafradek.TF2weapons.entity.mercenary.EntityTF2Character;
 import rafradek.TF2weapons.item.ItemAmmoPackage;
@@ -27,7 +28,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Map.Entry;
 
-public class TileEntityResupplyCabinet extends TileEntity implements ITickable, IEntityConfigurable {
+public class TileEntityResupplyCabinet extends BlockEntity implements BlockEntityTicker, IEntityConfigurable {
 
 	private static final String[] OUTPUT_NAMES = { "OnResupply", "OnResupplyLeave" };
 	public Team team;
@@ -201,8 +202,8 @@ public class TileEntityResupplyCabinet extends TileEntity implements ITickable, 
 	}
 
 	@Override
-	public void readConfig(NBTTagCompound tag) {
-		this.getOutputManager().loadOutputs(tag.getCompoundTag("Outputs"));
+	public void readConfig(CompoundTag tag) {
+		this.getOutputManager().loadOutputs(tag.get("Outputs"));
 		this.redstoneActivate = tag.getBoolean("Redstone Activates");
 		if (this.hasWorld() && tag.hasKey("T:Team"))
 			this.team = this.world.getScoreboard().getTeam(tag.getString("T:Team"));

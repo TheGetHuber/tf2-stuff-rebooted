@@ -4,18 +4,20 @@ import com.google.common.collect.HashMultimap;
 import com.google.common.collect.Multimap;
 import net.minecraft.block.*;
 import net.minecraft.block.state.IBlockState;
-import net.minecraft.nbt.NBTTagCompound;
-import net.minecraft.nbt.NBTTagIntArray;
-import net.minecraft.nbt.NBTTagList;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.IntArrayTag;
+import net.minecraft.nbt.ListTag;
+import net.minecraft.nbt.Tag;
 import net.minecraft.tileentity.TileEntityComparator;
 import net.minecraft.util.EnumFacing;
 import net.minecraft.util.Tuple;
 import net.minecraft.util.math.BlockPos;
-import net.minecraft.world.World;
+import net.minecraft.world.level.Level;
 import rafradek.TF2weapons.TF2weapons;
+import net.minecraft.core.BlockPos;
 
 public class EntityOutputManager {
-	public World world;
+	public Level world;
 	public Multimap<String, Tuple<BlockPos, Integer>> outputs = HashMultimap.create();
 	public String name = "";
 	public IEntityConfigurable entity;
@@ -24,42 +26,42 @@ public class EntityOutputManager {
 		this.entity = entity;
 	}
 
-	public void setWorld(World world) {
+	public void setWorld(Level world) {
 		this.world = world;
 	}
 
-	public void loadOutputs(NBTTagCompound tag) {
+	public void loadOutputs(CompoundTag tag) {
 		outputs.clear();
-		for (String key : tag.getKeySet()) {
-			NBTTagList list = tag.getTagList(key, 11);
-			for (int i = 0; i < list.tagCount(); i++) {
-				int[] arr = ((NBTTagIntArray) list.get(i)).getIntArray();
+		for (String key : tag.getAllKeys()) {
+			ListTag list = tag.getList(key, Tag.TAG_INT_ARRAY);
+			for (int i = 0; i < list.size(); i++) {
+				int[] arr = ((IntArrayTag) list.get(i)).getAsIntArray();
 				outputs.put(key, new Tuple<>(new BlockPos(arr[0], arr[1], arr[2]), arr[3]));
 			}
 		}
 	}
 
-	public NBTTagCompound saveOutputs(NBTTagCompound tag) {
+	public CompoundTag saveOutputs(CompoundTag tag) {
 		for (String key : outputs.keySet()) {
-			NBTTagList list = new NBTTagList();
+			ListTag list = new ListTag();
 			for (Tuple<BlockPos, Integer> pos : outputs.get(key)) {
-				list.appendTag(new NBTTagIntArray(new int[] { pos.getFirst().getX(), pos.getFirst().getY(),
-						pos.getFirst().getZ(), pos.getSecond() }));
+				list.add(new IntArrayTag(new int[] { pos.getA().getX(), pos.getA().getY(),
+						pos.getA().getZ(), pos.getB() }));
 			}
-			tag.setTag(key, list);
+			tag.put(key, list);
 		}
 		return tag;
 	}
 
-	public void readConfig(NBTTagCompound tag) {
-		this.loadOutputs(tag.getCompoundTag("Outputs"));
+	public void readConfig(CompoundTag tag) {
+		this.loadOutputs(tag.getCompound("Outputs"));
 		this.name = tag.getString("Link Name");
 		this.entity.readConfig(tag);
 	}
 
-	public NBTTagCompound writeConfig(NBTTagCompound tag) {
-		tag.setTag("Outputs", this.saveOutputs(new NBTTagCompound()));
-		tag.setString("Link Name", name);
+	public CompoundTag writeConfig(CompoundTag tag) {
+		tag.put("Outputs", this.saveOutputs(new CompoundTag()));
+		tag.putString("Link Name", name);
 		this.entity.writeConfig(tag);
 		return tag;
 	}
@@ -67,8 +69,8 @@ public class EntityOutputManager {
 	public void activateOutput(String output, float power, int minTime) {
 		TF2weapons.LOGGER.info("activated " + output);
 		for (Tuple<BlockPos, Integer> tup : outputs.get(output)) {
-			BlockPos pos = tup.getFirst();
-			IBlockState state = world.getBlockState(pos);
+			BlockPos pos = tup.getA();
+			BlockState state = world.getBlockState(pos);
 			if (state.getBlock() instanceof BlockButton) {
 				world.setBlockState(pos, state.withProperty(BlockButton.POWERED, Boolean.valueOf(true)), 3);
 				world.notifyNeighborsOfStateChange(pos, state.getBlock(), false);

@@ -1,12 +1,12 @@
 package rafradek.TF2weapons.tileentity;
 
-import net.minecraft.nbt.NBTTagCompound;
+import net.minecraft.nbt.CompoundTag;
 
 public interface IEntityConfigurable {
 
-	public NBTTagCompound writeConfig(NBTTagCompound tag);
+	public CompoundTag writeConfig(CompoundTag tag);
 
-	public void readConfig(NBTTagCompound tag);
+	public void readConfig(CompoundTag tag);
 
 	public EntityOutputManager getOutputManager();
 

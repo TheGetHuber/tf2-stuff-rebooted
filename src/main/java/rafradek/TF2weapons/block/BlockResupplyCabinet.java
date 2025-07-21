@@ -1,44 +1,58 @@
 package rafradek.TF2weapons.block;
 
-import net.minecraft.block.Block;
-import net.minecraft.block.BlockContainer;
-import net.minecraft.block.BlockHorizontal;
-import net.minecraft.block.material.Material;
-import net.minecraft.block.properties.IProperty;
-import net.minecraft.block.properties.PropertyBool;
-import net.minecraft.block.properties.PropertyDirection;
-import net.minecraft.block.state.BlockStateContainer;
-import net.minecraft.block.state.IBlockState;
-import net.minecraft.creativetab.CreativeTabs;
+import net.minecraft.core.NonNullList;
+import net.minecraft.world.item.CreativeModeTabs;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.player.EntityPlayer;
-import net.minecraft.item.ItemStack;
-import net.minecraft.tileentity.TileEntity;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.util.*;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
-import net.minecraftforge.fml.relauncher.Side;
-import net.minecraftforge.fml.relauncher.SideOnly;
+import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.api.distmarker.OnlyIn;
 import rafradek.TF2weapons.tileentity.TileEntityResupplyCabinet;
 import rafradek.TF2weapons.tileentity.TileEntityRobotDeploy;
+import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.RenderShape;
+import net.minecraft.world.level.block.SoundType;
+import net.minecraft.world.level.block.Mirror;
+import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.state.StateDefinition;
+import net.minecraft.world.level.block.state.properties.BooleanProperty;
+import net.minecraft.world.level.block.state.properties.DirectionProperty;
+import net.minecraft.world.level.material.MapColor;
+import net.minecraft.core.Direction;
 
-public class BlockResupplyCabinet extends BlockContainer {
+public class BlockResupplyCabinet extends Block {
 
-	public static final PropertyBool HOLDER = PropertyBool.create("holder");
-	public static final PropertyDirection FACING = BlockHorizontal.FACING;
-
+	public static final BooleanProperty HOLDER = BooleanProperty.create("holder");
+	public static final DirectionProperty FACING = DirectionProperty.create("facing", Direction.Plane.HORIZONTAL);
+	
 	public BlockResupplyCabinet() {
-		super(Material.IRON);
-		setDefaultState(blockState.getBaseState().withProperty(FACING, EnumFacing.NORTH).withProperty(HOLDER, true));
+		super(Properties.of()
+			.mapColor(MapColor.METAL)
+			.strength(2.5f, 6.0f)
+			.sound(SoundType.METAL)
+			.requiresCorrectToolForDrops()
+		);
+		
+		this.registerDefaultState(this.stateDefinition.any().setValue(FACING, Direction.NORTH).setValue(HOLDER, true));
 	}
 
 	@Override
-	public EnumBlockRenderType getRenderType(IBlockState state) {
-		return EnumBlockRenderType.MODEL;
+	protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> builder) {
+		builder.add(FACING, HOLDER);
 	}
 
 	@Override
-	public TileEntity createNewTileEntity(World world, int meta) {
+	public RenderShape getRenderShape(BlockState state){
+		return RenderShape.MODEL;
+	}
+
+	@Override
+	public BlockEntity createNewTileEntity(World world, int meta) {
 		return  ((meta & 4) == 4) ? new TileEntityResupplyCabinet() : null;
 	}
 
@@ -49,8 +63,12 @@ public class BlockResupplyCabinet extends BlockContainer {
 	}
 
 	@Override
-	public IBlockState getStateForPlacement(World world, BlockPos pos, EnumFacing facing, float hitX, float hitY, float hitZ, int meta, EntityLivingBase placer) {
-		return getDefaultState().withProperty(FACING, placer.getHorizontalFacing().getOpposite());
+	//public IBlockState getStateForPlacement(World world, BlockPos pos, EnumFacing facing, float hitX, float hitY, float hitZ, int meta, EntityLivingBase placer) {
+	//	return getDefaultState().withProperty(FACING, placer.getHorizontalFacing().getOpposite());
+	//}
+	
+	public BlockState getStateForPlacement(BlockPlaceContext context){
+		return this.defaultBlockState().setValue(FACING, context.getHorizontalDirection().getOpposite()).setValue(HOLDER, true);
 	}
 
 	@Override
@@ -59,7 +77,7 @@ public class BlockResupplyCabinet extends BlockContainer {
 	}
 
 	private void updateState(World world, BlockPos pos, IBlockState state) {
-		TileEntity ent = world.getTileEntity(pos);
+		BlockEntity ent = world.getTileEntity(pos);
 		if (ent instanceof TileEntityResupplyCabinet && ((TileEntityResupplyCabinet) ent).redstoneActivate)
 			((TileEntityResupplyCabinet) ent).setEnabled(world.isBlockPowered(pos));
 	}
@@ -90,7 +108,7 @@ public class BlockResupplyCabinet extends BlockContainer {
 			if (world.getBlockState(pos.down()).getBlock() == this) world.setBlockToAir(pos.down());
 			if (world.getBlockState(pos.up()).getBlock() == this && !world.getBlockState(pos.up()).getValue(HOLDER)) world.setBlockToAir(pos.up());
 		}
-		TileEntity ent = world.getTileEntity(pos);
+		BlockEntity ent = world.getTileEntity(pos);
 		if (ent instanceof TileEntityRobotDeploy) ((TileEntityRobotDeploy) ent).dropInventory();
 	}
 
@@ -126,13 +144,13 @@ public class BlockResupplyCabinet extends BlockContainer {
 	}
 
 	@Override
-	@SideOnly(Side.CLIENT)
+	@OnlyIn(Dist.CLIENT)
 	public void getSubBlocks(CreativeTabs tab, NonNullList<ItemStack> list) {
 		list.add(new ItemStack(this, 1, 4));
 	}
 
 	@Override
-	@SideOnly(Side.CLIENT)
+	@OnlyIn(Dist.CLIENT)
 	public BlockRenderLayer getBlockLayer() {
 		return BlockRenderLayer.CUTOUT;
 	}
