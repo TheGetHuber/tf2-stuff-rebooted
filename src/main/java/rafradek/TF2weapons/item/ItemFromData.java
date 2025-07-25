@@ -7,6 +7,7 @@ import com.google.common.collect.Lists;
 import com.google.gson.JsonDeserializationContext;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonParseException;
+
 import net.minecraft.client.Minecraft;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
@@ -30,11 +31,14 @@ import rafradek.TF2weapons.util.TF2Util;
 import rafradek.TF2weapons.util.WeaponData;
 
 import javax.annotation.Nullable;
+
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
 import java.util.*;
 import java.util.Map.Entry;
+
+import net.minecraft.world.entity.LivingEntity;
 
 @SuppressWarnings("deprecation")
 public class ItemFromData extends Item implements IItemOverlay {
@@ -634,18 +638,18 @@ public class ItemFromData extends Item implements IItemOverlay {
 		return ammoCount;
 	}
 
-	public int getAmmoAmount(EntityLivingBase owner, ItemStack stack) {
+	public int getAmmoAmount(LivingEntity owner, ItemStack stack) {
 
 		int type = this.getAmmoType(stack);
 
 		if (type == 0)
 			return 999;
 
-		if (type == 14 && owner instanceof EntityPlayer && TF2ConfigVars.freeUseItems) {
-			return ((EntityPlayer) owner).getCooldownTracker().hasCooldown(this) ? 0 : 1;
+		if (type == 14 && owner instanceof Player && TF2ConfigVars.freeUseItems) {
+			return ((Player) owner).getCooldownTracker().hasCooldown(this) ? 0 : 1;
 		}
-		if (EntityDispenser.isNearDispenser(owner.world, owner)
-				|| (owner instanceof EntityPlayer && ((EntityPlayer) owner).capabilities.isCreativeMode))
+		if (EntityDispenser.isNearDispenser(owner.level(), owner)
+				|| (owner instanceof Player && ((Player) owner).capabilities.isCreativeMode))
 			return 999;
 
 		if (owner instanceof EntityTF2Character)
@@ -659,12 +663,12 @@ public class ItemFromData extends Item implements IItemOverlay {
 			return owner.getCapability(TF2weapons.WEAPONS_CAP, null).getMetal();
 		}
 
-		int ammoCount = getAmmoAmountType((EntityPlayer) owner, type);
+		int ammoCount = getAmmoAmountType((Player) owner, type);
 
 		return (int) (ammoCount / TF2Attribute.getModifier("Ammo Eff", stack, 1, owner));
 	}
 
-	public int getActualAmmoUse(ItemStack stack, EntityLivingBase living, int amount) {
+	public int getActualAmmoUse(ItemStack stack, LivingEntity living, int amount) {
 		if (this.getAmmoType(stack) == 0 || amount == 0)
 			return 0;
 
@@ -681,7 +685,7 @@ public class ItemFromData extends Item implements IItemOverlay {
 		return amount;
 	}
 
-	public int getVisibilityFlags(ItemStack stack, EntityLivingBase living) {
+	public int getVisibilityFlags(ItemStack stack, LivingEntity living) {
 		return ItemFromData.getData(stack).getInt(PropertyType.WEAR);
 	}
 

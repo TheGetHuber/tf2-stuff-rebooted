@@ -1,49 +1,16 @@
 package rafradek.TF2weapons.entity.mercenary;
 
 import com.google.common.base.Optional;
-import net.minecraft.block.Block;
-import net.minecraft.block.state.IBlockState;
 import net.minecraft.client.Minecraft;
-import net.minecraft.enchantment.EnchantmentHelper;
-import net.minecraft.entity.*;
-import net.minecraft.entity.ai.*;
-import net.minecraft.entity.ai.attributes.AttributeModifier;
-import net.minecraft.entity.ai.attributes.IAttributeInstance;
-import net.minecraft.entity.item.EntityXPOrb;
-import net.minecraft.entity.monster.IMob;
-import net.minecraft.entity.player.EntityPlayer;
-import net.minecraft.entity.player.EntityPlayerMP;
-import net.minecraft.init.Items;
-import net.minecraft.init.MobEffects;
-import net.minecraft.init.SoundEvents;
-import net.minecraft.inventory.EntityEquipmentSlot;
-import net.minecraft.item.*;
-import net.minecraft.nbt.NBTTagCompound;
-import net.minecraft.nbt.NBTTagList;
-import net.minecraft.network.datasync.DataParameter;
-import net.minecraft.network.datasync.DataSerializers;
-import net.minecraft.network.datasync.EntityDataManager;
-import net.minecraft.potion.PotionEffect;
-import net.minecraft.scoreboard.Team;
-import net.minecraft.stats.StatList;
-import net.minecraft.tileentity.BannerPattern;
-import net.minecraft.tileentity.TileEntity;
-import net.minecraft.tileentity.TileEntityBanner;
-import net.minecraft.util.DamageSource;
-import net.minecraft.util.EnumHand;
-import net.minecraft.util.NonNullList;
-import net.minecraft.util.SoundEvent;
-import net.minecraft.util.math.*;
-import net.minecraft.village.MerchantRecipe;
-import net.minecraft.village.MerchantRecipeList;
+import net.minecraft.client.multiplayer.chat.LoggedChatMessage.Player;
 import net.minecraft.world.DifficultyInstance;
-import net.minecraft.world.EnumDifficulty;
-import net.minecraft.world.EnumSkyBlock;
-import net.minecraft.world.World;
-import net.minecraft.world.chunk.Chunk;
+import net.minecraft.world.entity.PathfinderMob;
+import net.minecraft.world.item.trading.Merchant;
 import net.minecraftforge.common.capabilities.Capability;
-import net.minecraftforge.fml.common.network.internal.FMLNetworkHandler;
 import net.minecraftforge.items.ItemStackHandler;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.Mob;
+import net.minecraft.world.entity.OwnableEntity;
 import rafradek.TF2weapons.*;
 import rafradek.TF2weapons.client.ClientProxy;
 import rafradek.TF2weapons.common.MapList;
@@ -61,7 +28,7 @@ import rafradek.TF2weapons.util.*;
 import javax.annotation.Nullable;
 import java.util.*;
 
-public abstract class EntityTF2Character extends EntityCreature implements IMob, IMerchant, IEntityTF2, IEntityOwnable {
+public abstract class EntityTF2Character extends PathfinderMob implements Merchant, IEntityTF2, OwnableEntity {
 
 	public static final UUID SPEED_MULT_UUID = UUID.fromString("8ca1776e-72e8-4394-9d0f-0564fdec0b44");
 	public static final UUID SPEED_GIANT_MULT_UUID = UUID.fromString("8ca1776e-72e8-4394-9d0f-0564fdec0b41");
@@ -76,8 +43,8 @@ public abstract class EntityTF2Character extends EntityCreature implements IMob,
 	public boolean ranged;
 	public EntityAIUseRangedWeapon attack;
 	public EntityAIMoveAttack moveAttack;
-	public EntityAINearestChecked<EntityLivingBase> findplayer = new EntityAINearestChecked<>(this,
-			EntityLivingBase.class, true, false, this::isValidTarget, true, false);
+	public EntityAINearestChecked<LivingEntity> findplayer = new EntityAINearestChecked<>(this,
+			LivingEntity.class, true, false, this::isValidTarget, true, false);
 	protected EntityAIAttackMelee attackMeele = new EntityAIAttackMelee(this, 1.1F, false);
 	public EntityAIWander wander;
 	// public int ammoLeft;
@@ -86,9 +53,9 @@ public abstract class EntityTF2Character extends EntityCreature implements IMob,
 	private boolean noAmmo;
 	public boolean alert;
 	public static int nextEntTeam = -1;
-	public EntityPlayer trader;
-	public EntityPlayer lastTrader;
-	public Map<EntityPlayer, Integer> tradeCount;
+	public Player trader;
+	public Player lastTrader;
+	public Map<Player, Integer> tradeCount;
 	public InventoryLoadout loadout;
 	public ItemStackHandler loadoutHeld;
 	public ItemStackHandler refill;
@@ -129,7 +96,7 @@ public abstract class EntityTF2Character extends EntityCreature implements IMob,
 	public float eating = 0;
 	public EntityAIAvoidEntity<EntitySentry> avoidSentry;
 	private int alertTime;
-	private EntityLivingBase alertTarget;
+	private LivingEntity alertTarget;
 	public int difficulty = 0;
 	public ArrayList<AttributeModifier> playerAttributes = new ArrayList<>();
 	public boolean[] isEmpty;
@@ -460,7 +427,7 @@ public abstract class EntityTF2Character extends EntityCreature implements IMob,
 	}
 
 	@Override
-	public void setAttackTarget(EntityLivingBase target) {
+	public void setAttackTarget(LivingEntity target) {
 
 		super.setAttackTarget(target);
 		if (this.isTrading() && target != null && this.getCustomer() != this.getOwner()) {
@@ -487,7 +454,7 @@ public abstract class EntityTF2Character extends EntityCreature implements IMob,
 
 	public boolean shouldScaleAttributes() {
 		return this.getAttackTarget() != null && TF2ConfigVars.scaleAttributes
-				&& (this.getAttackTarget() instanceof EntityPlayer || this.getAttackTarget() instanceof IEntityOwnable
+				&& (this.getAttackTarget() instanceof Player || this.getAttackTarget() instanceof IEntityOwnable
 						&& ((IEntityOwnable) this.getAttackTarget()).getOwnerId() != null)
 				&& this.getOwnerId() == null;
 	}
@@ -1021,9 +988,9 @@ public abstract class EntityTF2Character extends EntityCreature implements IMob,
 
 	@Override
 	public void onDeath(DamageSource s) {
-		if (s.getTrueSource() != null && s.getTrueSource() instanceof EntityPlayerMP
+		if (s.getTrueSource() != null && s.getTrueSource() instanceof PlayerMP
 				&& !TF2Util.isOnSameTeam(this, s.getTrueSource())) {
-			EntityPlayerMP player = (EntityPlayerMP) s.getTrueSource();
+			PlayerMP player = (PlayerMP) s.getTrueSource();
 			if (s.getTrueSource().getTeam() != null || TF2ConfigVars.neutralAttack) {
 				if (!this.isRobot()) {
 					player.addStat(TF2Achievements.KILLED_MERC);
@@ -1046,7 +1013,7 @@ public abstract class EntityTF2Character extends EntityCreature implements IMob,
 		super.onDeath(s);
 	}
 
-	public boolean isValidTarget(EntityLivingBase living) {
+	public boolean isValidTarget(LivingEntity living) {
 		boolean hostilemob = false;
 		if (TF2ConfigVars.attackMobs && !this.isRobot() && living instanceof EntityLiving
 				&& TF2Util.isHostile(living)) {
@@ -1054,7 +1021,7 @@ public abstract class EntityTF2Character extends EntityCreature implements IMob,
 			rangesq *= rangesq;
 			hostilemob = living.getDistanceSq(EntityTF2Character.this) < rangesq;
 		}
-		if (living.getTeam() != null || (TF2ConfigVars.neutralAttack && living instanceof EntityPlayer) || hostilemob) {
+		if (living.getTeam() != null || (TF2ConfigVars.neutralAttack && living instanceof Player) || hostilemob) {
 			return !TF2Util.isOnSameTeam(EntityTF2Character.this, living)
 					&& (!(living instanceof EntityTF2Character && TF2ConfigVars.naturalCheck.equals("Never"))
 							|| (!((EntityTF2Character) living).natural || !natural));
@@ -1063,7 +1030,7 @@ public abstract class EntityTF2Character extends EntityCreature implements IMob,
 	}
 
 	@Override
-	public boolean processInteract(EntityPlayer player, EnumHand hand) {
+	public boolean processInteract(Player player, EnumHand hand) {
 		if (!(player.getHeldItemMainhand() != null
 				&& player.getHeldItemMainhand().getItem() instanceof ItemMonsterPlacerPlus)
 				&& (this.getOwner() == player || this.getAttackTarget() == null || this.friendly)
@@ -1386,7 +1353,7 @@ public abstract class EntityTF2Character extends EntityCreature implements IMob,
 		if (this.isEntityInvulnerable(source))
 			return false;
 		else if (super.attackEntityFrom(source, amount)) {
-			if (event != null && (!(source.getTrueSource() instanceof EntityLivingBase)
+			if (event != null && (!(source.getTrueSource() instanceof LivingEntity)
 					|| source.getTrueSource() == TF2weapons.dummyEnt)) {
 				event.onDamageEnv(this, source, amount);
 				this.damagedByEnv = true;
@@ -1421,17 +1388,17 @@ public abstract class EntityTF2Character extends EntityCreature implements IMob,
 		float f = (float) this.getEntityAttribute(SharedMonsterAttributes.ATTACK_DAMAGE).getBaseValue();
 		int i = 0;
 
-		if (entityIn instanceof EntityLivingBase) {
+		if (entityIn instanceof LivingEntity) {
 			f += EnchantmentHelper.getModifierForCreature(this.getHeldItemMainhand(),
-					((EntityLivingBase) entityIn).getCreatureAttribute());
+					((LivingEntity) entityIn).getCreatureAttribute());
 			i += EnchantmentHelper.getKnockbackModifier(this);
 		}
 
 		boolean flag = entityIn.attackEntityFrom(DamageSource.causeMobDamage(this), f);
 
 		if (flag) {
-			if (i > 0 && entityIn instanceof EntityLivingBase) {
-				((EntityLivingBase) entityIn).knockBack(this, i * 0.5F, MathHelper.sin(this.rotationYaw * 0.017453292F),
+			if (i > 0 && entityIn instanceof LivingEntity) {
+				((LivingEntity) entityIn).knockBack(this, i * 0.5F, MathHelper.sin(this.rotationYaw * 0.017453292F),
 						(-MathHelper.cos(this.rotationYaw * 0.017453292F)));
 				this.motionX *= 0.6D;
 				this.motionZ *= 0.6D;
@@ -1442,18 +1409,18 @@ public abstract class EntityTF2Character extends EntityCreature implements IMob,
 			if (j > 0)
 				entityIn.setFire(j * 4);
 
-			if (entityIn instanceof EntityPlayer) {
-				EntityPlayer entityplayer = (EntityPlayer) entityIn;
+			if (entityIn instanceof Player) {
+				Player Player = (Player) entityIn;
 				ItemStack itemstack = this.getHeldItemMainhand();
-				ItemStack itemstack1 = entityplayer.isHandActive() ? entityplayer.getActiveItemStack() : null;
+				ItemStack itemstack1 = Player.isHandActive() ? Player.getActiveItemStack() : null;
 
 				if (!itemstack.isEmpty() && itemstack1 != null && itemstack.getItem() instanceof ItemAxe
 						&& itemstack1.getItem() == Items.SHIELD) {
 					float f1 = 0.25F + EnchantmentHelper.getEfficiencyModifier(this) * 0.05F;
 
 					if (this.rand.nextFloat() < f1) {
-						entityplayer.getCooldownTracker().setCooldown(Items.SHIELD, 100);
-						this.world.setEntityState(entityplayer, (byte) 30);
+						Player.getCooldownTracker().setCooldown(Items.SHIELD, 100);
+						this.world.setEntityState(Player, (byte) 30);
 					}
 				}
 			}
@@ -1522,17 +1489,17 @@ public abstract class EntityTF2Character extends EntityCreature implements IMob,
 	 * TF2weapons.lootTF2Character; }
 	 */
 	@Override
-	public void setCustomer(EntityPlayer player) {
+	public void setCustomer(Player player) {
 		this.trader = player;
 	}
 
 	@Override
-	public EntityPlayer getCustomer() {
+	public Player getCustomer() {
 		return this.trader;
 	}
 
 	@Override
-	public MerchantRecipeList getRecipes(EntityPlayer player) {
+	public MerchantRecipeList getRecipes(Player player) {
 		if (this.tradeOffers == null)
 			makeOffers();
 		return tradeOffers;
@@ -1835,13 +1802,13 @@ public abstract class EntityTF2Character extends EntityCreature implements IMob,
 				map.get(ownerName).add(new MerchantRecipe(ItemStack.EMPTY, ItemStack.EMPTY, stack, 0, 1));
 			}
 		}
-		EntityLivingBase attacker = this.getAttackingEntity();
+		LivingEntity attacker = this.getAttackingEntity();
 		if (!this.refill.getStackInSlot(0).isEmpty()
 				&& (attacker == this.getOwner() || !TF2Util.isOnSameTeam(attacker, this))) {
 			this.entityDropItem(this.refill.getStackInSlot(0), 0);
 		}
 
-		boolean isPlayerAttacker = (attacker instanceof EntityPlayer
+		boolean isPlayerAttacker = (attacker instanceof Player
 				|| (attacker instanceof IEntityOwnable && ((IEntityOwnable) attacker).getOwnerId() != null))
 				&& (attacker.getTeam() != null || TF2ConfigVars.neutralAttack) && TF2Util.isEnemy(attacker, this);
 		if (!this.isRobot() && isPlayerAttacker)
@@ -1891,7 +1858,7 @@ public abstract class EntityTF2Character extends EntityCreature implements IMob,
 	}
 
 	@Override
-	protected int getExperiencePoints(EntityPlayer player) {
+	protected int getExperiencePoints(Player player) {
 		if (TF2Util.isOnSameTeam(player, this))
 			return 0;
 		else if (this.isRobot() && !this.isGiant())
@@ -1940,11 +1907,11 @@ public abstract class EntityTF2Character extends EntityCreature implements IMob,
 			return null;
 	}
 
-	public void setOwner(EntityLivingBase owner) {
+	public void setOwner(LivingEntity owner) {
 		if (owner == null) {
 			this.ownerName = null;
 			this.dataManager.set(OWNER_UUID, Optional.absent());
-		} else if (owner instanceof EntityPlayer) {
+		} else if (owner instanceof Player) {
 			this.ownerName = owner.getName();
 			this.dataManager.set(OWNER_UUID, Optional.of(owner.getUniqueID()));
 			this.enablePersistence();
@@ -2094,7 +2061,7 @@ public abstract class EntityTF2Character extends EntityCreature implements IMob,
 	}
 
 	@Override
-	public boolean isBackStabbable(EntityLivingBase attacker, ItemStack knife) {
+	public boolean isBackStabbable(LivingEntity attacker, ItemStack knife) {
 		return true;
 	}
 
@@ -2111,7 +2078,7 @@ public abstract class EntityTF2Character extends EntityCreature implements IMob,
 	}
 
 	@Override
-	public float getBackstabDamageReduction(EntityLivingBase attacker, ItemStack knife, float mult) {
+	public float getBackstabDamageReduction(LivingEntity attacker, ItemStack knife, float mult) {
 		if (this.isGiant()) {
 			mult *= 0.6f;
 			if (this.getEntityData().hasKey(NBTLiterals.BACKSTAB_MULT))

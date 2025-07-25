@@ -1,14 +1,14 @@
 package rafradek.TF2weapons.entity.ai;
 
 import com.google.common.base.Predicate;
-import net.minecraft.entity.EntityCreature;
-import net.minecraft.entity.EntityLivingBase;
-import net.minecraft.entity.IEntityOwnable;
-import net.minecraft.entity.ai.EntityAINearestAttackableTarget;
-import net.minecraft.entity.ai.EntityAINearestAttackableTarget.Sorter;
-import net.minecraft.entity.ai.EntityAITarget;
-import net.minecraft.entity.player.EntityPlayer;
-import net.minecraft.scoreboard.Team;
+
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.OwnableEntity;
+import net.minecraft.world.entity.PathfinderMob;
+import net.minecraft.world.entity.ai.goal.target.TargetGoal;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.scores.Team;
 import rafradek.TF2weapons.TF2ConfigVars;
 import rafradek.TF2weapons.TF2weapons;
 import rafradek.TF2weapons.entity.mercenary.EntityMedic;
@@ -17,18 +17,19 @@ import rafradek.TF2weapons.item.ItemDisguiseKit;
 import rafradek.TF2weapons.util.TF2Util;
 
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 
-public class EntityAINearestChecked<T extends EntityLivingBase> extends EntityAITarget {
+public class EntityAINearestChecked<T extends LivingEntity> extends TargetGoal {
 	public int targetChoosen = 0;
 	private Class<T> targetClass;
-	private Sorter theNearestAttackableTargetSorter;
+	private Comparator<Entity> theNearestAttackableTargetSorter;
 	private Predicate<T> targetEntitySelector;
-	public EntityLivingBase targetEntity;
+	public LivingEntity targetEntity;
 	private boolean targetLock;
 	private int targetUnseenTicks;
 
-	public EntityAINearestChecked(EntityCreature p_i1665_1_, Class<T> p_i1665_2_, boolean p_i1665_4_,
+	public EntityAINearestChecked(PathfinderMob p_i1665_1_, Class<T> p_i1665_2_, boolean p_i1665_4_,
 			boolean p_i1665_5_, final Predicate<T> p_i1665_6_, boolean targetLock, boolean allowBehind) {
 		super(p_i1665_1_, p_i1665_4_, p_i1665_5_);
 		this.targetClass = p_i1665_2_;
@@ -41,14 +42,14 @@ public class EntityAINearestChecked<T extends EntityLivingBase> extends EntityAI
 			else {
 				// System.out.println("found "+target.getClass().getName()+"
 				// "+EntityAINearestChecked.this.taskOwner.getClass().getName());
-				if (target instanceof EntityLivingBase) {
-					double d0 = EntityAINearestChecked.this.getTargetDistance();
+				if (target instanceof LivingEntity) {
+					double d0 = EntityAINearestChecked.this.mob.distanceTo(this.mob.getTarget());
 
-					if (target.isSneaking())
+					if (target.isShiftKeyDown())
 						d0 *= 0.800000011920929D;
 
-					if (target instanceof EntityPlayer && target.isInvisible()) {
-						float f = ((EntityPlayer) target).getArmorVisibility();
+					if (target instanceof Player && target.isInvisible()) {
+						float f = ((Player) target).getArmorCoverPercentage();
 
 						if (f < 0.1F)
 							f = 0.1F;
@@ -57,12 +58,12 @@ public class EntityAINearestChecked<T extends EntityLivingBase> extends EntityAI
 					}
 					if (target.hasCapability(TF2weapons.WEAPONS_CAP, null)
 							&& (target.getCapability(TF2weapons.WEAPONS_CAP, null).invisTicks >= 20
-									|| ItemDisguiseKit.isDisguised(target, taskOwner)))
+									|| ItemDisguiseKit.isDisguised(target, this.mob)))
 						d0 = 1;
-					boolean fastCheck = allowBehind || (!(target instanceof EntityPlayer)
-							&& (TF2ConfigVars.naturalCheck.equals("Fast") && taskOwner instanceof EntityTF2Character
-									&& ((EntityTF2Character) taskOwner).natural));
-					if (target.getDistance(taskOwner) > d0 || (!fastCheck && !TF2Util.lookingAtFast(taskOwner, 86,
+					boolean fastCheck = allowBehind || (!(target instanceof Player)
+							&& (TF2ConfigVars.naturalCheck.equals("Fast") && this.mob instanceof EntityTF2Character
+									&& ((EntityTF2Character) this.mob).natural));
+					if (target.getDistance(this.mob) > d0 || (!fastCheck && !TF2Util.lookingAtFast(this.mob, 86,
 							target.posX, target.posY + target.getEyeHeight(), target.posZ)))
 						return false;
 
@@ -74,19 +75,19 @@ public class EntityAINearestChecked<T extends EntityLivingBase> extends EntityAI
 	}
 
 	@Override
-	public boolean shouldExecute() {
-		double d0 = this.getTargetDistance() / 2;
-		if (((this.taskOwner.getAttackTarget() == null)
-				|| this.taskOwner.getAttackTarget().getDistanceSq(taskOwner) > d0 * d0))
+	public boolean canUse() {
+		double d0 = this.mob.distanceTo(this.mob.getTarget()) / 2;
+		if (((this.mob.getTarget() == null)
+				|| this.mob.getTarget().distanceTo(mob) > d0 * d0))
 			this.targetChoosen++;
-		if (((this.taskOwner.getAttackTarget() == null) && this.targetChoosen > 1) || this.targetChoosen > 5
+		if (((this.mob.getTarget() == null) && this.targetChoosen > 1) || this.targetChoosen > 5
 				|| !this.targetLock) {
 			// System.out.println("executing
 			// "+this.taskOwner.getClass().getName());
 			this.targetChoosen = 0;
-			double d1 = this.getTargetDistance();
-			List<? extends EntityLivingBase> list = this.taskOwner.world.getEntitiesWithinAABB(this.targetClass,
-					this.taskOwner.getEntityBoundingBox().grow(d1, d0, d1), this.targetEntitySelector);
+			double d1 = this.mob.distanceTo(this.mob.getTarget());
+			List<? extends LivingEntity> list = this.mob.level().getEntitiesWithinAABB(this.targetClass,
+					this.mob.getBoundingBox().grow(d1, d0, d1), this.targetEntitySelector);
 			Collections.sort(list, this.theNearestAttackableTargetSorter);
 
 			if (list.isEmpty())
@@ -102,7 +103,7 @@ public class EntityAINearestChecked<T extends EntityLivingBase> extends EntityAI
 	}
 
 	@Override
-	public void startExecuting() {
+	public void start() {
 		this.taskOwner.setAttackTarget(this.targetEntity);
 		if (this.taskOwner instanceof EntityTF2Character && this.taskOwner.getAttackTarget() != null) {
 			EntityTF2Character shooter = ((EntityTF2Character) this.taskOwner);
@@ -110,7 +111,7 @@ public class EntityAINearestChecked<T extends EntityLivingBase> extends EntityAI
 			shooter.targetPrevPos[2] = shooter.getAttackTarget().posY;
 			shooter.targetPrevPos[4] = shooter.getAttackTarget().posZ;
 		}
-		super.startExecuting();
+		super.start();
 	}
 
 	/**
@@ -118,42 +119,42 @@ public class EntityAINearestChecked<T extends EntityLivingBase> extends EntityAI
 	 * checks. Args : entity, canTargetInvinciblePlayer
 	 */
 	@Override
-	public boolean shouldContinueExecuting() {
-		EntityLivingBase entitylivingbase = this.taskOwner.getAttackTarget();
+	public boolean canContinueToUse() {
+		LivingEntity LivingEntity = this.taskOwner.getAttackTarget();
 
-		if (entitylivingbase == null)
+		if (LivingEntity == null)
 			return false;
-		else if (!entitylivingbase.isEntityAlive())
+		else if (!LivingEntity.isEntityAlive())
 			return false;
 		else if (!this.targetLock && this.taskOwner.ticksExisted % 13 == 0)
 			return this.shouldExecute();
 		else {
 			Team team = this.taskOwner.getTeam();
-			Team team1 = entitylivingbase.getTeam();
+			Team team1 = LivingEntity.getTeam();
 
 			if ((team != null && team1 == team) && !(this.taskOwner instanceof EntityMedic))
 				return false;
 			else {
 				double d0 = this.getTargetDistance();
 
-				if (this.taskOwner.getDistanceSq(entitylivingbase) > d0 * d0)
+				if (this.taskOwner.getDistanceSq(LivingEntity) > d0 * d0)
 					return false;
 				else {
 					if (this.shouldCheckSight)
-						if (this.taskOwner.getEntitySenses().canSee(entitylivingbase))
+						if (this.taskOwner.getEntitySenses().canSee(LivingEntity))
 							this.targetUnseenTicks = 0;
 						else if (++this.targetUnseenTicks > 60)
 							return false;
 
-					return !(entitylivingbase instanceof EntityPlayer)
-							|| !((EntityPlayer) entitylivingbase).capabilities.disableDamage;
+					return !(LivingEntity instanceof Player)
+							|| !((Player) LivingEntity).capabilities.disableDamage;
 				}
 			}
 		}
 	}
 
 	@Override
-	protected boolean isSuitableTarget(EntityLivingBase target, boolean includeInvincibles) {
+	protected boolean isSuitableTarget(LivingEntity target, boolean includeInvincibles) {
 		if (target == null)
 			return false;
 		else if (target == this.taskOwner)
@@ -169,17 +170,17 @@ public class EntityAINearestChecked<T extends EntityLivingBase> extends EntityAI
 			if ((team != null && team1 == team) && !medic)
 				return false;
 			else {
-				if (!medic && this.taskOwner instanceof IEntityOwnable
-						&& ((IEntityOwnable) this.taskOwner).getOwnerId() != null) {
-					if (target instanceof IEntityOwnable && ((IEntityOwnable) this.taskOwner).getOwnerId()
-							.equals(((IEntityOwnable) target).getOwnerId()))
+				if (!medic && this.taskOwner instanceof OwnableEntity
+						&& ((OwnableEntity) this.taskOwner).getOwnerId() != null) {
+					if (target instanceof OwnableEntity && ((OwnableEntity) this.taskOwner).getOwnerId()
+							.equals(((OwnableEntity) target).getOwnerId()))
 						return false;
 
-					if (target == ((IEntityOwnable) this.taskOwner).getOwner())
+					if (target == ((OwnableEntity) this.taskOwner).getOwner())
 						return false;
 				}
-				if (target instanceof EntityPlayer && !includeInvincibles
-						&& ((EntityPlayer) target).capabilities.disableDamage)
+				if (target instanceof Player && !includeInvincibles
+						&& ((Player) target).capabilities.disableDamage)
 					return false;
 
 				return !this.shouldCheckSight || this.taskOwner.getEntitySenses().canSee(target);

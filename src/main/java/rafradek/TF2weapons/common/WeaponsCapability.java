@@ -12,7 +12,12 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.network.syncher.EntityDataAccessor;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.monster.ZombifiedPiglin;
+import net.minecraft.world.entity.player.Inventory;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
+import net.minecraftforge.common.capabilities.AutoRegisterCapability;
 import net.minecraftforge.common.capabilities.Capability;
 import net.minecraftforge.common.capabilities.ICapabilityProvider;
 import net.minecraftforge.common.util.INBTSerializable;
@@ -44,6 +49,10 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
+/* TODO: Capability system in 1.21.1 drasticly changed compared to 1.12.2 (like in Player.getCapability and EntityPlayer.getCapability).
+ * 		 So massive code rewrite must be happend, like separation of capabilites from here.
+*/
+@AutoRegisterCapability
 public class WeaponsCapability implements ICapabilityProvider, INBTSerializable<CompoundTag> {
 
 	public static final int MAX_METAL = 200;
@@ -100,7 +109,7 @@ public class WeaponsCapability implements ICapabilityProvider, INBTSerializable<
 	public boolean teleporterEntity;
 	public boolean forcedClass;
 	public float lastHitCharge;
-	public EntityDataAccessor dataManager;
+	public SynchedEntityData dataManager;
 
 	public LivingEntity entityDisguise;
 
@@ -129,51 +138,22 @@ public class WeaponsCapability implements ICapabilityProvider, INBTSerializable<
 
 	private EntityGrapplingHook grapplingHook;
 
-	//private static final EntityDataAccessor<Boolean> EXP_JUMP = new EntityDataAccessor<>(6, EntityDataSerializers.BOOLEAN);
 	private static final EntityDataAccessor<Boolean> EXP_JUMP = SynchedEntityData.defineId(null, EntityDataSerializers.BOOLEAN);
-
-	//private static final DataParameter<Boolean> CHARGING = new DataParameter<>(11, DataSerializers.BOOLEAN);
 	private static final EntityDataAccessor<Boolean> CHARGING = SynchedEntityData.defineId(null, EntityDataSerializers.BOOLEAN);
-
-	//private static final DataParameter<String> DISGUISE_TYPE = new DataParameter<>(7, DataSerializers.STRING);
 	private static final EntityDataAccessor<String> DISGUISE_TYPE = SynchedEntityData.defineId(null, EntityDataSerializers.STRING);
-
-	//private static final DataParameter<Boolean> DISGUISED = new DataParameter<>(8, DataSerializers.BOOLEAN);
 	private static final EntityDataAccessor<Boolean> DISGUISED = SynchedEntityData.defineId(null, EntityDataSerializers.BOOLEAN);
-
-	//private static final DataParameter<Boolean> INVIS = new DataParameter<>(9, DataSerializers.BOOLEAN);
 	private static final EntityDataAccessor<Boolean> INVIS = SynchedEntityData.defineId(null, EntityDataSerializers.BOOLEAN);
-
-	//private static final DataParameter<Boolean> FEIGN = new DataParameter<>(10, DataSerializers.BOOLEAN);
 	private static final EntityDataAccessor<Boolean> FEIGN = SynchedEntityData.defineId(null, EntityDataSerializers.BOOLEAN);
-	
-	//private static final DataParameter<Integer> CRIT_TIME = new DataParameter<>(0, DataSerializers.VARINT);
 	private static final EntityDataAccessor<Integer> CRIT_TIME = SynchedEntityData.defineId(null, EntityDataSerializers.INT);
-	
-	//private static final DataParameter<Integer> HEADS = new DataParameter<>(1, DataSerializers.VARINT);
 	private static final EntityDataAccessor<Integer> HEADS = SynchedEntityData.defineId(null, EntityDataSerializers.INT);
-	
-	//private static final DataParameter<Integer> HEAL_TARGET = new DataParameter<>(2, DataSerializers.VARINT);
 	private static final EntityDataAccessor<Integer> HEAL_TARGET = SynchedEntityData.defineId(null, EntityDataSerializers.INT);
-	
-	//private static final DataParameter<Integer> METAL = new DataParameter<>(3, DataSerializers.VARINT);
 	private static final EntityDataAccessor<Integer> METAL = SynchedEntityData.defineId(null, EntityDataSerializers.INT);
-	
-	//private static final DataParameter<Integer> TOKEN_USED = new DataParameter<>(12, DataSerializers.VARINT);
 	private static final EntityDataAccessor<Integer> TOKEN_USED = SynchedEntityData.defineId(null, EntityDataSerializers.INT);
-	
-	//private static final DataParameter<Byte> CAN_FIRE = new DataParameter<>(13, DataSerializers.BYTE);
 	private static final EntityDataAccessor<Byte> CAN_FIRE = SynchedEntityData.defineId(null, EntityDataSerializers.BYTE);
-	
-	//private static final DataParameter<Float> UBER_VIEW = new DataParameter<>(14, DataSerializers.FLOAT);
 	private static final EntityDataAccessor<Float> UBER_VIEW = SynchedEntityData.defineId(null, EntityDataSerializers.FLOAT);
-	
-	//private static final DataParameter<Boolean> GRAPPLING = new DataParameter<>(15, DataSerializers.BOOLEAN);
 	private static final EntityDataAccessor<Boolean> GRAPPLING = SynchedEntityData.defineId(null, EntityDataSerializers.BOOLEAN);
-	
-	//private static final DataParameter<Boolean> GRAPPLED = new DataParameter<>(16, DataSerializers.BOOLEAN)
 	private static final EntityDataAccessor<Boolean> GRAPPLED = SynchedEntityData.defineId(null, EntityDataSerializers.BOOLEAN);
-
+ 	
 	private static final EnumMap<RageType, EntityDataAccessor<Float>> RAGE = new EnumMap<>(RageType.class);
 	private static final EnumMap<RageType, EntityDataAccessor<Boolean>> RAGE_ACTIVE = new EnumMap<>(RageType.class);
 	public static final ExecutorService THREAD_POOL = new ThreadPoolExecutor(0, 2, 1L, TimeUnit.MINUTES,
@@ -190,31 +170,41 @@ public class WeaponsCapability implements ICapabilityProvider, INBTSerializable<
 	 * buildingOwnerKill;
 	 */
 
+	
+
 	public WeaponsCapability(LivingEntity entity) {
 		this.owner = entity;
 
-		for (int i = 0; i < this.predictionList.length; i++)
+		for (int i = 0; i < this.predictionList.length; i++){
 			this.predictionList[i] = new ArrayDeque<>();
-		this.dataManager = new EntityDataManager(entity);
-		this.dataManager.register(CRIT_TIME, 0);
-		this.dataManager.register(HEADS, 0);
-		this.dataManager.register(HEAL_TARGET, -1);
-		this.dataManager.register(METAL, MAX_METAL);
-		this.dataManager.register(FEIGN, false);
-		this.dataManager.register(INVIS, false);
-		this.dataManager.register(DISGUISED, false);
-		this.dataManager.register(DISGUISE_TYPE, "");
-		this.dataManager.register(EXP_JUMP, false);
-		this.dataManager.register(CHARGING, false);
-		this.dataManager.register(TOKEN_USED, -1);
-		this.dataManager.register(CAN_FIRE, (byte) 0);
-		this.dataManager.register(UBER_VIEW, 0f);
-		this.dataManager.register(GRAPPLED, false);
-		this.dataManager.register(GRAPPLING, false);
-		for (RageType type : RageType.values()) {
-			this.dataManager.register(RAGE.get(type), 0f);
-			this.dataManager.register(RAGE_ACTIVE.get(type), false);
 		}
+
+		// TODO: Implement 'entity' in builder
+		SynchedEntityData.Builder rawDataBuilder;
+
+		rawDataBuilder.define(CRIT_TIME, 0);
+		rawDataBuilder.define(CRIT_TIME, 0);
+		rawDataBuilder.define(HEADS, 0);
+		rawDataBuilder.define(HEAL_TARGET, -1);
+		rawDataBuilder.define(METAL, MAX_METAL);
+		rawDataBuilder.define(FEIGN, false);
+		rawDataBuilder.define(INVIS, false);
+		rawDataBuilder.define(DISGUISED, false);
+		rawDataBuilder.define(DISGUISE_TYPE, "");
+		rawDataBuilder.define(EXP_JUMP, false);
+		rawDataBuilder.define(CHARGING, false);
+		rawDataBuilder.define(TOKEN_USED, -1);
+		rawDataBuilder.define(CAN_FIRE, (byte) 0);
+		rawDataBuilder.define(UBER_VIEW, 0f);
+		rawDataBuilder.define(GRAPPLED, false);
+		rawDataBuilder.define(GRAPPLING, false);
+		for (RageType type : RageType.values()) {
+			rawDataBuilder.define(RAGE.get(type), 0f);
+			rawDataBuilder.define(RAGE_ACTIVE.get(type), false);
+		}
+
+		this.dataManager = rawDataBuilder.build();
+
 		// this.nextBossTicks = (int) (entity.world.getWorldTime() +
 		// entity.getRNG().nextInt(360000));
 	}
@@ -252,20 +242,23 @@ public class WeaponsCapability implements ICapabilityProvider, INBTSerializable<
 	}
 
 	public boolean hasMetal(int metal) {
-		boolean hasIngot = this.owner instanceof EntityPlayer && TF2Util.hasEnoughItem(
-				((EntityPlayer) this.owner).inventory, stackL -> stackL.getItem() == Items.IRON_INGOT,
-				MathHelper.ceil((metal - this.getMetal()) / 50f));
+		boolean hasIngot = this.owner instanceof Player && TF2Util.hasEnoughItem(
+				((Player) this.owner).getInventory(), stackL -> stackL.getItem() == Items.IRON_INGOT,
+				Math.ceil((metal - this.getMetal()) / 50f));
 		return hasIngot || this.getMetal() >= metal;
 	}
 
 	public int consumeMetal(int metal, boolean allowPartial) {
 		int usedMetal = 0;
 
-		if (this.owner instanceof EntityPlayer) {
+		if (this.owner instanceof Player) {
 			ItemStack ingot = new ItemStack(Items.IRON_INGOT);
+			Inventory plyInventory = ((Player) this.owner).getInventory() 
+
 			while (((allowPartial && this.getMetal() == 0) || (!allowPartial && this.getMetal() < metal))
-					&& ((EntityPlayer) this.owner).inventory.hasItemStack(ingot)) {
-				((EntityPlayer) this.owner).inventory.clearMatchingItems(Items.IRON_INGOT, 0, 1, null);
+					&& plyInventory.contains(ingot)) {
+				//((Player) this.owner).getInventory().clearMatchingItems(Items.IRON_INGOT, 0, 1, null); // Removes 1 ingot without any metadata and NBT 
+				plyInventory.removeItem(plyInventory.findSlotMatchingItem(ingot), 1); // Probably removes 1 ingot probably without any metadata and NBT
 				this.setMetal(this.getMetal() + 50);
 			}
 		}
@@ -277,11 +270,11 @@ public class WeaponsCapability implements ICapabilityProvider, INBTSerializable<
 	}
 
 	public void setMetal(int metal) {
-		this.dataManager.set(METAL, MathHelper.clamp(metal, 0, this.getMaxMetal()));
+		this.dataManager.set(METAL, Math.clamp(metal, 0, this.getMaxMetal()));
 	}
 
 	public void giveMetal(int metal) {
-		this.dataManager.set(METAL, MathHelper.clamp(this.getMetal() + metal, 0, this.getMaxMetal()));
+		this.dataManager.set(METAL, Math.clamp(this.getMetal() + metal, 0, this.getMaxMetal()));
 	}
 
 	public int getMaxMetal() {
@@ -348,9 +341,9 @@ public class WeaponsCapability implements ICapabilityProvider, INBTSerializable<
 
 	public void setExpJump(boolean val) {
 		this.dataManager.set(EXP_JUMP, val);
-		if (val && !this.owner.world.isRemote) {
+		if (val && this.owner.level().isClientSide) {
 			this.expJumpGround = 2;
-			TF2Util.sendTracking(new TF2Message.ActionMessage(28, this.owner), this.owner);
+			TF2Util.sendTracking(new TF2Message.ActionMessage(28, this.owner), this.owner); // NOTE: In theory, TF2Message needs huge work and adaptation because of massive changes in SimpleImpl
 		}
 	}
 
@@ -392,16 +385,16 @@ public class WeaponsCapability implements ICapabilityProvider, INBTSerializable<
 		return this.dataManager.get(TOKEN_USED);
 	}
 
-	public boolean canFire(EnumHand hand, boolean primary) {
+	public boolean canFire(InteractionHand hand, boolean primary) {
 		int flags = this.dataManager.get(CAN_FIRE);
 		return (flags & (1 << hand.ordinal())) == (1 << hand.ordinal())
 				&& (((flags & 4) == 4 && primary) || ((flags & 8) == 8 && !primary));
 
 	}
 
-	public void setCanFire(boolean fire, EnumHand hand, boolean primary) {
+	public void setCanFire(boolean fire, InteractionHand hand, boolean primary) {
 		int flag = 0;
-		if (hand == EnumHand.MAIN_HAND)
+		if (hand == InteractionHand.MAIN_HAND)
 			flag += 1;
 		else
 			flag += 2;
@@ -415,6 +408,7 @@ public class WeaponsCapability implements ICapabilityProvider, INBTSerializable<
 			this.dataManager.set(CAN_FIRE, (byte) (this.dataManager.get(CAN_FIRE) & ~(flag)));
 	}
 
+	// NOTE: I do not want to touch any network stuff.
 	public void addEffectCooldown(String name, int time) {
 		this.effectsCool.put(name, time);
 		if (this.owner instanceof EntityPlayerMP)
@@ -423,7 +417,7 @@ public class WeaponsCapability implements ICapabilityProvider, INBTSerializable<
 
 	public void addHead(ItemStack weapon) {
 
-		this.collectedHeadsTime = owner.ticksExisted;
+		this.collectedHeadsTime = owner.tickCount; // NOTE: changed EntityLivingBase.ticksExisted on LivingEntity.tickCount . Could be not right
 		this.dataManager.set(HEADS, this.dataManager.get(HEADS) + 1);
 		/*
 		 * this.owner.getAttributeMap().getAttributeInstance(SharedMonsterAttributes.

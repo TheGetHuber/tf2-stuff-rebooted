@@ -26,6 +26,7 @@ import net.minecraft.util.text.ITextComponent;
 import net.minecraft.util.text.TextComponentString;
 import net.minecraft.util.text.TextComponentTranslation;
 import net.minecraft.util.text.TextFormatting;
+import net.minecraft.world.entity.player.Player;
 import net.minecraftforge.common.capabilities.Capability;
 import net.minecraftforge.common.capabilities.ICapabilityProvider;
 import net.minecraftforge.common.util.INBTSerializable;
@@ -655,7 +656,7 @@ public class TF2PlayerCapability implements ICapabilityProvider, INBTSerializabl
 		this.setBackpackItemHold(new ItemStack(nbt.getCompoundTag("BackpackEquipItem")));
 	}
 
-	public static TF2PlayerCapability get(EntityPlayer player) {
+	public static TF2PlayerCapability get(Player player) {
 		return player.getCapability(TF2weapons.PLAYER_CAP, null);
 	}
 

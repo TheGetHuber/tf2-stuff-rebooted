@@ -85,11 +85,11 @@ public class TF2weapons {
 	// @CapabilityInject(class) was deleted
 	// Now it is DeferredRegister<Capability<?>>
 
-	public static final DeferredRegister<Capability<?>> CAPABILITIES =
-		DeferredRegister.create(ForgeRegistries.Keys.CAPABILITIES_TYPE, MOD_ID);
-	
-	public static final RegistryObject<DataComponentType<WeaponsCapability>> WEAPONS_CAP = 
-		CAPABILITIES.register("weapons_cap", () -> DataComponentType.<WeaponsCapability>builder().build());
+	// public static final DeferredRegister<Capability<?>> CAPABILITIES =
+	// 	DeferredRegister.create(ForgeRegistries.Keys.CAPABILITIES_TYPE, MOD_ID);
+	// 
+	// public static final RegistryObject<DataComponentType<WeaponsCapability>> WEAPONS_CAP = 
+	// 	CAPABILITIES.register("weapons_cap", () -> DataComponentType.<WeaponsCapability>builder().build());
 
 	// @CapabilityInject(WeaponsCapability.class)
 	// public static final DataComponentType<WeaponsCapability> WEAPONS_CAP = null;

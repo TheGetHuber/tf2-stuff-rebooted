@@ -3,53 +3,12 @@ package rafradek.TF2weapons.util;
 import com.google.common.base.Predicate;
 import com.google.common.collect.Iterables;
 import com.google.common.io.Resources;
-import net.minecraft.block.Block;
-import net.minecraft.block.BlockStone;
-import net.minecraft.block.state.BlockFaceShape;
-import net.minecraft.block.state.IBlockState;
 import net.minecraft.client.Minecraft;
-import net.minecraft.enchantment.EnchantmentHelper;
-import net.minecraft.enchantment.EnchantmentProtection;
-import net.minecraft.entity.*;
-import net.minecraft.entity.ai.attributes.AttributeModifier;
-import net.minecraft.entity.ai.attributes.IAttribute;
-import net.minecraft.entity.boss.EntityDragon;
-import net.minecraft.entity.boss.EntityWither;
-import net.minecraft.entity.item.EntityEnderCrystal;
-import net.minecraft.entity.monster.EntityEnderman;
-import net.minecraft.entity.monster.EntityGhast;
-import net.minecraft.entity.monster.IMob;
-import net.minecraft.entity.player.EntityPlayer;
-import net.minecraft.entity.player.EntityPlayerMP;
-import net.minecraft.init.Blocks;
-import net.minecraft.init.MobEffects;
-import net.minecraft.inventory.EntityEquipmentSlot;
-import net.minecraft.inventory.IInventory;
-import net.minecraft.item.ItemStack;
-import net.minecraft.nbt.NBTBase;
-import net.minecraft.nbt.NBTTagCompound;
-import net.minecraft.nbt.NBTTagList;
-import net.minecraft.network.play.server.SPacketEntityEffect;
-import net.minecraft.network.play.server.SPacketEntityVelocity;
-import net.minecraft.network.play.server.SPacketSoundEffect;
-import net.minecraft.potion.PotionEffect;
-import net.minecraft.scoreboard.Team;
 import net.minecraft.util.*;
-import net.minecraft.util.EnumFacing.Axis;
-import net.minecraft.util.math.*;
-import net.minecraft.util.math.RayTraceResult.Type;
-import net.minecraft.world.EnumDifficulty;
-import net.minecraft.world.Explosion;
-import net.minecraft.world.World;
-import net.minecraft.world.WorldServer;
-import net.minecraft.world.biome.Biome;
-import net.minecraftforge.fml.common.network.NetworkRegistry.TargetPoint;
-import net.minecraftforge.fml.common.network.simpleimpl.IMessage;
-import net.minecraftforge.fml.common.registry.IThrowableEntity;
-import net.minecraftforge.items.CapabilityItemHandler;
+import net.minecraft.world.entity.player.Inventory;
+import net.minecraft.world.item.ItemStack;
 import net.minecraftforge.items.IItemHandler;
 import net.minecraftforge.items.ItemHandlerHelper;
-import net.minecraftforge.oredict.OreDictionary;
 import rafradek.TF2weapons.TF2ConfigVars;
 import rafradek.TF2weapons.TF2EventsCommon.DestroyBlockEntry;
 import rafradek.TF2weapons.TF2EventsCommon.InboundDamage;
@@ -1266,12 +1225,12 @@ public class TF2Util {
 		return stack;
 	}
 
-	public static boolean hasEnoughItem(IInventory inventory, Predicate<ItemStack> pred, int amount) {
+	public static boolean hasEnoughItem(Inventory inventory, Predicate<ItemStack> pred, double amount) {
 		int count = 0;
 		if (amount <= 0)
 			return true;
-		for (int i = 0; i < inventory.getSizeInventory(); i++) {
-			ItemStack stack = inventory.getStackInSlot(i);
+		for (int i = 0; i < inventory.getContainerSize(); i++) {
+			ItemStack stack = inventory.getItem(i);
 			if (!stack.isEmpty() && pred.apply(stack)) {
 				count += stack.getCount();
 				if (count >= amount)

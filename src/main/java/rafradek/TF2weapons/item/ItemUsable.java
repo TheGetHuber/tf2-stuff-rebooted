@@ -1,21 +1,10 @@
 package rafradek.TF2weapons.item;
 
 import net.minecraft.client.Minecraft;
-import net.minecraft.entity.Entity;
-import net.minecraft.entity.EntityLivingBase;
-import net.minecraft.entity.SharedMonsterAttributes;
-import net.minecraft.entity.ai.attributes.AttributeModifier;
-import net.minecraft.entity.ai.attributes.IAttributeInstance;
-import net.minecraft.entity.player.EntityPlayer;
-import net.minecraft.entity.player.EntityPlayerMP;
-import net.minecraft.item.ItemStack;
-import net.minecraft.potion.PotionEffect;
-import net.minecraft.util.ActionResult;
-import net.minecraft.util.EnumActionResult;
-import net.minecraft.util.EnumHand;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.MathHelper;
-import net.minecraft.world.World;
+import net.minecraft.core.BlockPos;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.ItemStack;
 import rafradek.TF2weapons.TF2ConfigVars;
 import rafradek.TF2weapons.TF2PlayerCapability;
 import rafradek.TF2weapons.TF2weapons;
@@ -213,7 +202,7 @@ public abstract class ItemUsable extends ItemFromData {
 	 * true; } public int getRenderPasses(int metadata) { return 1; }
 	 */
 
-	public int getFiringSpeed(ItemStack stack, EntityLivingBase living) {
+	public int getFiringSpeed(ItemStack stack, LivingEntity living) {
 		int speed = (int) (TF2Attribute.getModifier("Fire Rate", stack,
 				ItemFromData.getData(stack).getInt(PropertyType.FIRE_SPEED), living));
 		if (living != null && isDoubleWielding(living))
@@ -241,12 +230,12 @@ public abstract class ItemUsable extends ItemFromData {
 	}
 
 	@Override
-	public boolean onBlockStartBreak(ItemStack itemstack, BlockPos pos, EntityPlayer player) {
-		return (player.world.isRemote && !TF2ConfigVars.swapAttackButton)
-				|| (!player.world.isRemote && !TF2PlayerCapability.get(player).breakBlocks);
+	public boolean onBlockStartBreak(ItemStack itemstack, BlockPos pos, Player player) {
+		return (!player.level().isClientSide && !TF2ConfigVars.swapAttackButton)
+				|| (player.level().isClientSide && !TF2PlayerCapability.get(player).breakBlocks);
 	}
 
-	public static boolean isDoubleWielding(EntityLivingBase living) {
+	public static boolean isDoubleWielding(LivingEntity living) {
 		return ItemFromData.getData(living.getHeldItemMainhand()) != ItemFromData.BLANK_DATA
 				&& living.getHeldItemMainhand().getItem() instanceof ItemUsable
 				&& living.getHeldItemOffhand().getItem() instanceof ItemUsable
